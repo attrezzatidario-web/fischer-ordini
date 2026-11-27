@@ -82,79 +82,53 @@
     viaggio.forEach(x => { pz(x.tipo === 'ddt' ? H.pzOfD(x) : H.pzName(x)).v++; });
     const pins = [...P.values()].map(p => ({ ...p, g: GEO[p.k] })).filter(p => p.g);
     const [ox, oy] = proj(ORIGIN);
-    // inquadratura: la zona dei piazzali con margine largo; testi e segni in proporzione
+    // tutta l'Italia, quadrata; k = unità della mappa per pixel (la mappa è larga circa 640 px)
+    const VX = 26, VY = 4, VS = 432, k = VS / 640, f1 = n => n.toFixed(1), f2 = n => n.toFixed(2);
     const pts = pins.map(p => { const [x, y] = proj(p.g); return { p, x, y, st: p.lt ? 'bad' : p.v ? 'go' : p.a ? 'open' : p.tot ? 'ok' : 'idle' }; });
-    const xs = [ox, ...pts.map(q => q.x)], ys = [oy, ...pts.map(q => q.y)];
-    let vx0 = Math.min(...xs) - 44, vx1 = Math.max(...xs) + 62, vy0 = Math.min(...ys) - 40, vy1 = Math.max(...ys) + 30;
-    const AR = 1.28; let vw = Math.max(170, vx1 - vx0), vh = Math.max(170 / AR, vy1 - vy0);
-    if (vw / vh < AR) vw = vh * AR; else vh = vw / AR;
-    const cx = (vx0 + vx1) / 2, cy = (vy0 + vy1) / 2; vx0 = cx - vw / 2; vy0 = cy - vh / 2;
-    const z = vw / 336 * 1.05, F = 8.2 * z, f2 = n => n.toFixed(2);
-    // spilli: testa sopra il punto; etichette nella prima posizione libera
-    const big = q => q.st !== 'idle' && q.st !== 'ok', HR = q => (big(q) ? 6.2 : 3.4) * z, HY = q => big(q) ? -13 * z : 0;
-    const taken = [{ x: ox - 8 * z, y: oy - 8 * z, w: 16 * z, h: 16 * z }], hit = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
-    pts.forEach(q => { q.hr = HR(q); q.hy = HY(q); taken.push({ x: q.x - q.hr, y: q.y + q.hy - q.hr, w: 2 * q.hr, h: 2 * q.hr - q.hy }); });
-    const lw = 14 * F * .7, lo = [{ x: ox - lw / 2, y: oy + 9 * z, w: lw, h: F * 1.2, ty: 9 * z + F * .9 }, { x: ox - lw / 2, y: oy - 11 * z - F, w: lw, h: F * 1.2, ty: -11 * z }].find(c => !taken.some(t => hit(c, t))) || { ty: 9 * z + F * .9, x: 0, y: 0, w: 0, h: 0 };
-    taken.push(lo);
-    pts.slice().sort((a, b) => b.p.a + b.p.v - (a.p.a + a.p.v) || a.y - b.y).forEach(q => {
-      const w = q.p.n.length * F * .62, h = F * 1.3, g = q.hr + 3 * z, yy = q.y + q.hy;
-      const C = [{ x: q.x + g, y: yy - h / 2, a: 'start', tx: g, ty: q.hy + F * .35 }, { x: q.x - g - w, y: yy - h / 2, a: 'end', tx: -g, ty: q.hy + F * .35 },
-        { x: q.x - w / 2, y: yy - q.hr - 2 * z - h, a: 'middle', tx: 0, ty: q.hy - q.hr - 3 * z }, { x: q.x - w / 2, y: q.y + 3 * z, a: 'middle', tx: 0, ty: 4 * z + F },
-        { x: q.x + g * .7, y: yy - q.hr - h, a: 'start', tx: g * .7, ty: q.hy - q.hr - F * .2 }, { x: q.x - g * .7 - w, y: yy - q.hr - h, a: 'end', tx: -g * .7, ty: q.hy - q.hr - F * .2 },
-        { x: q.x + g * .7, y: q.y + 2 * z, a: 'start', tx: g * .7, ty: 2 * z + F }, { x: q.x - g * .7 - w, y: q.y + 2 * z, a: 'end', tx: -g * .7, ty: 2 * z + F }]
-        .map(c => ({ ...c, w, h }));
-      const ov = c => taken.reduce((s, t) => s + Math.max(0, Math.min(c.x + c.w, t.x + t.w) - Math.max(c.x, t.x)) * Math.max(0, Math.min(c.y + c.h, t.y + t.h) - Math.max(c.y, t.y)), 0)
-        + (c.x < vx0 + 4 * z || c.x + c.w > vx0 + vw - 4 * z || c.y < vy0 + 22 * z || c.y + c.h > vy0 + vh - 4 * z ? 1e6 : 0);
-      q.l = C.reduce((b, c) => (c.o = ov(c)) < b.o ? c : b, { o: Infinity }); taken.push(q.l);
-    });
-    // regioni: evidenziate dove ci sono piazzali e ordini aperti
-    const regSt = {}; pts.forEach(q => { const r = q.p.g[3]; if (!r) return; const o = regSt[r] || (regSt[r] = { n: 0, a: 0, v: 0, lt: 0, pz: [] }); o.n++; o.a += q.p.a; o.v += q.p.v; o.lt += q.p.lt; o.pz.push(q.p.n); });
-    const yMin = Math.min(...REG.map(r => r.c[1])), yMax = Math.max(...REG.map(r => r.c[1]));
-    const regs = REG.map(r => { const o = regSt[r.n], cls = !o ? '' : o.lt ? ' bad' : o.v ? ' go' : o.a ? ' open' : ' has'; return { ...r, cls, o, dl: ((r.c[1] - yMin) / (yMax - yMin) * .9).toFixed(2) }; });
-    const ALL = REG.map(r => r.d).join('');
-    const arc = (x, y, k = 1) => { const mx = (ox + x) / 2 + (y - oy) * .2, my = (oy + y) / 2 - Math.abs(x - ox) * .24 * k - 10 * z; return `M${ox.toFixed(1)} ${oy.toFixed(1)} Q${mx.toFixed(1)} ${my.toFixed(1)} ${x.toFixed(1)} ${y.toFixed(1)}`; };
+    const R = q => (q.st === 'idle' ? 2.6 : q.st === 'ok' ? 3.2 : 4.2) * k;
+    // etichette: posizione con il minimo di sovrapposizioni, anche lontana dal punto con un filo di richiamo
+    const F = 10.5 * k, LH = 13 * k, taken = [];
+    const box = (x, y, w, h) => ({ x, y, w, h }), over = (a, b) => Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
+    taken.push(box(ox - 7 * k, oy - 7 * k, 14 * k, 14 * k)); pts.forEach(q => taken.push(box(q.x - R(q) - 2 * k, q.y - R(q) - 2 * k, 2 * R(q) + 4 * k, 2 * R(q) + 4 * k)));
+    const place = (x, y, txt, w0) => {
+      const w = w0 || txt.length * F * .64 + 2 * k; let best = null;
+      [10, 18, 30, 44].forEach((d, di) => [0, 180, -35, 35, 145, -145, -90, 90].forEach(a => {
+        const r = a * Math.PI / 180, ex = x + Math.cos(r) * d * k, ey = y + Math.sin(r) * d * k, left = Math.cos(r) < -.2, right = Math.cos(r) > .2;
+        const bx = left ? ex - w : right ? ex : ex - w / 2, by = ey - LH / 2, b = box(bx, by, w, LH);
+        const out = bx < VX + 4 * k || bx + w > VX + VS - 4 * k || by < VY + 40 * k ? 1e6 : 0;
+        const c = taken.reduce((s, t) => s + over(b, t), 0) * 10 + out + di * 30 * k * k + Math.abs(a) * .02 * k;
+        if (!best || c < best.c) best = { c, b, ex, ey, an: left ? 'end' : right ? 'start' : 'middle', d };
+      }));
+      taken.push(best.b); return best;
+    };
+    const hq = place(ox, oy, 'FISCHER · PADOVA', 16 * F * .62);
+    pts.slice().sort((a, b) => (b.st !== 'idle') - (a.st !== 'idle') || b.p.a + b.p.v - (a.p.a + a.p.v)).forEach(q => { q.l = place(q.x, q.y, q.p.n.toUpperCase()); });
+    const regSt = {}; pts.forEach(q => { const r = q.p.g[3]; if (!r) return; const o = regSt[r] || (regSt[r] = { a: 0, v: 0, lt: 0 }); o.a += q.p.a; o.v += q.p.v; o.lt += q.p.lt; });
+    const arc = (x, y) => { const dx = x - ox, dy = y - oy, d = Math.hypot(dx, dy), bend = Math.min(.3, 18 / Math.max(d, 1)) * d; const mx = (ox + x) / 2 - dy / d * bend, my = (oy + y) / 2 + dx / d * bend * (dx > 0 ? -1 : 1); return `M${f1(ox)} ${f1(oy)}Q${f1(mx)} ${f1(my)} ${f1(x)} ${f1(y)}`; };
     const goPts = pts.filter(q => q.p.v), waitPts = pts.filter(q => !q.p.v && q.p.a);
-    const pinShape = r => `M0 0C${f2(-.25 * r)} ${f2(-.9 * r)} ${f2(-r)} ${f2(-1.25 * r)} ${f2(-r)} ${f2(-2.1 * r)}A${f2(r)} ${f2(r)} 0 1 1 ${f2(r)} ${f2(-2.1 * r)}C${f2(r)} ${f2(-1.25 * r)} ${f2(.25 * r)} ${f2(-.9 * r)} 0 0Z`;
-    const mapSvg = `<svg class="itmap" preserveAspectRatio="xMidYMid slice" viewBox="${vx0.toFixed(1)} ${vy0.toFixed(1)} ${vw.toFixed(1)} ${vh.toFixed(1)}" style="--z:${z.toFixed(3)}" role="img" aria-label="Mappa dei piazzali e delle spedizioni in viaggio">
+    const lbl = (l, x, y, txt, cls) => `${l.d > 12 ? `<path class="m-lead" d="M${f1(x)} ${f1(y)}L${f1(l.ex)} ${f1(l.ey)}"/>` : ''}<text class="m-lbl${cls ? ' ' + cls : ''}" x="${f1(l.an === 'start' ? l.ex + 2 * k : l.an === 'end' ? l.ex - 2 * k : l.ex)}" y="${f1(l.ey + F * .36)}" text-anchor="${l.an}">${esc(txt)}</text>`;
+    const mapSvg = `<svg class="itmap" viewBox="${VX} ${VY} ${VS} ${VS}" preserveAspectRatio="xMidYMid meet" style="--k:${f2(k)}" role="img" aria-label="Mappa dei piazzali e delle spedizioni in viaggio">
       <defs>
-        <linearGradient id="msea" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e9f3f1"/><stop offset="1" stop-color="#d9e7ec"/></linearGradient>
-        <linearGradient id="mland" x1="0" y1="0" x2=".3" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#f1ece5"/></linearGradient>
-        <linearGradient id="mact" x1="0" y1="0" x2=".3" y2="1"><stop offset="0" stop-color="#c9efe7"/><stop offset="1" stop-color="#9bdccf"/></linearGradient>
-        <linearGradient id="msheen" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".75"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
-        <linearGradient id="mroute" gradientUnits="userSpaceOnUse" x1="${ox.toFixed(1)}" y1="0" x2="${(ox + 120 * z).toFixed(1)}" y2="0"><stop offset="0" stop-color="#d52b1e"/><stop offset=".35" stop-color="#14917f"/><stop offset="1" stop-color="#3fc4ae"/></linearGradient>
-        <radialGradient id="mradar" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="scale(${(46 * z).toFixed(1)})"><stop offset="0" stop-color="#d52b1e" stop-opacity=".35"/><stop offset="1" stop-color="#d52b1e" stop-opacity="0"/></radialGradient>
-        <radialGradient id="mvig" cx=".5" cy=".5" r=".72"><stop offset=".62" stop-color="#fff" stop-opacity="1"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
-        <mask id="mfade"><rect x="${vx0}" y="${vy0}" width="${vw}" height="${vh}" fill="url(#mvig)"/></mask>
-        <filter id="mshadow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="${(3.2 * z).toFixed(2)}"/></filter>
-        <filter id="mglow" x="-200%" y="-200%" width="500%" height="500%"><feGaussianBlur stdDeviation="${(1.6 * z).toFixed(2)}" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-        <pattern id="mgrid" width="${(12 * z).toFixed(2)}" height="${(12 * z).toFixed(2)}" patternUnits="userSpaceOnUse"><path d="M${(12 * z).toFixed(2)} 0H0V${(12 * z).toFixed(2)}" fill="none" stroke="#14917f" stroke-opacity=".08" stroke-width="${(.4 * z).toFixed(2)}"/></pattern>
-        <clipPath id="mclip"><path d="${ALL}"/></clipPath>
+        <radialGradient id="msea" cx=".55" cy=".35" r=".8"><stop offset="0" stop-color="#1b2a36"/><stop offset="1" stop-color="#0d151c"/></radialGradient>
+        <linearGradient id="mland" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2b3c49"/><stop offset="1" stop-color="#223240"/></linearGradient>
+        <linearGradient id="marc" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#3fc4ae" stop-opacity=".25"/><stop offset="1" stop-color="#3fc4ae" stop-opacity=".95"/></linearGradient>
+        <filter id="mglow" x="-300%" y="-300%" width="700%" height="700%"><feGaussianBlur stdDeviation="${f2(2.2 * k)}" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <filter id="mland-sh" x="-10%" y="-10%" width="120%" height="120%"><feDropShadow dx="0" dy="${f2(3 * k)}" stdDeviation="${f2(5 * k)}" flood-color="#000" flood-opacity=".55"/></filter>
       </defs>
-      <rect class="m-sea" x="${vx0}" y="${vy0}" width="${vw}" height="${vh}" fill="url(#msea)"/>
-      <rect x="${vx0}" y="${vy0}" width="${vw}" height="${vh}" fill="url(#mgrid)" mask="url(#mfade)"/>
-      <g class="m-terra" mask="url(#mfade)">
-        <path class="m-shadow" d="${ALL}" transform="translate(${f2(1.5 * z)} ${f2(5 * z)})" filter="url(#mshadow)"/>
-        <path class="m-side" d="${ALL}" transform="translate(0 ${f2(2.2 * z)})"/>
-        <g class="m-regs">${regs.map(r => `<path class="m-reg${r.cls}" d="${r.d}" pathLength="1" data-reg="${esc(r.n)}" style="--dl:${r.dl}s"/>`).join('')}</g>
-        <g clip-path="url(#mclip)"><rect class="m-sheen" x="${(vx0 - vw * .5).toFixed(1)}" y="${vy0}" width="${(vw * .35).toFixed(1)}" height="${vh}" fill="url(#msheen)"/></g>
-      </g>
-      ${waitPts.map((q, i) => `<path class="m-wait" d="${arc(q.x, q.y, .7)}" pathLength="1" style="--d:${(1 + i * .08).toFixed(2)}s"/>`).join('')}
-      ${goPts.map((q, i) => `<path class="m-glow${q.p.lt ? ' bad' : ''}" d="${arc(q.x, q.y)}" filter="url(#mglow)"/><path id="rt${i}" class="m-route${q.p.lt ? ' bad' : ''}" d="${arc(q.x, q.y)}" pathLength="1" style="--d:${(1.1 + i * .18).toFixed(2)}s"/>`).join('')}
-      ${goPts.map((q, i) => { const dur = (3.4 + i * .5).toFixed(1), b0 = 1.9 + i * .35; return [0, 1, 2, 3].map(t => `<circle class="m-trail t${t}${q.p.lt ? ' bad' : ''}" r="${f2((2.8 - t * .55) * z)}"><animateMotion dur="${dur}s" repeatCount="indefinite" begin="${(b0 - t * .07).toFixed(2)}s" keyPoints="0;1" keyTimes="0;1" calcMode="spline" keySplines=".5 0 .5 1"><mpath href="#rt${i}"/></animateMotion></circle>`).join(''); }).join('')}
-      <g class="m-origin" transform="translate(${ox.toFixed(1)} ${oy.toFixed(1)})">
-        <circle class="m-ring" r="${(10 * z).toFixed(2)}"/><circle class="m-ring r2" r="${(10 * z).toFixed(2)}"/>
-        <path class="m-radar" d="M0 0L${(46 * z).toFixed(1)} 0A${(46 * z).toFixed(1)} ${(46 * z).toFixed(1)} 0 0 0 ${(46 * z * Math.cos(Math.PI / 3)).toFixed(1)} ${(-46 * z * Math.sin(Math.PI / 3)).toFixed(1)}Z" fill="url(#mradar)"/>
-        <g class="m-hq"><rect x="${f2(-6 * z)}" y="${f2(-6 * z)}" width="${f2(12 * z)}" height="${f2(12 * z)}" rx="${f2(3 * z)}"/><text dy="${f2(2.4 * z)}" text-anchor="middle">F</text></g>
-        <text class="m-hq-l" y="${lo.ty.toFixed(1)}" text-anchor="middle">Fischer Padova</text></g>
-      ${pts.map((q, i) => { const p = q.p, r = q.hr; return `<g class="m-pin ${q.st}" data-mpz="${esc(p.n)}" transform="translate(${q.x.toFixed(1)} ${q.y.toFixed(1)})" tabindex="0" role="button" aria-label="${esc(p.n)}: ${p.a} ordini aperti"><g class="m-pin-in" style="--d:${(1.2 + i * .07).toFixed(2)}s">
-          <ellipse class="m-foot" rx="${f2(r * .7)}" ry="${f2(r * .25)}"/>
-          ${big(q) ? `${q.st === 'bad' || q.st === 'go' ? `<circle class="m-pulse" cy="${f2(q.hy)}" r="${f2(r)}"/>` : ''}<path class="m-head" d="${pinShape(r * .9)}"/><circle class="m-eye" cy="${f2(-2.1 * r * .9)}" r="${f2(r * .62)}"/><text class="m-n" y="${f2(-2.1 * r * .9 + 2.3 * z)}" text-anchor="middle">${p.a || p.v}</text>` : `<circle class="m-dot" r="${f2(r)}"/>${p.tot ? `<path class="m-ck" d="M${f2(-1.4 * z)} 0l${f2(1 * z)} ${f2(1 * z)} ${f2(1.9 * z)} ${f2(-2 * z)}"/>` : ''}`}
-          <text class="m-lbl" x="${q.l.tx.toFixed(1)}" y="${q.l.ty.toFixed(1)}" text-anchor="${q.l.a}">${esc(p.n)}</text></g></g>`; }).join('')}
+      <rect class="m-sea" x="${VX}" y="${VY}" width="${VS}" height="${VS}" fill="url(#msea)"/>
+      <g class="m-terra" filter="url(#mland-sh)">${REG.map((r, i) => { const o = regSt[r.n]; return `<path class="m-reg${o ? (o.lt ? ' bad' : o.v ? ' go' : o.a ? ' open' : ' has') : ''}" d="${r.d}" data-reg="${esc(r.n)}" style="--i:${i}"/>`; }).join('')}</g>
+      ${waitPts.map((q, i) => `<path class="m-wait" d="${arc(q.x, q.y)}" pathLength="1" style="--d:${f2(.9 + i * .1)}s"/>`).join('')}
+      ${goPts.map((q, i) => `<path id="rt${i}" class="m-route${q.p.lt ? ' bad' : ''}" d="${arc(q.x, q.y)}" pathLength="1" style="--d:${f2(.8 + i * .15)}s"/>`).join('')}
+      ${goPts.map((q, i) => `<circle class="m-comet${q.p.lt ? ' bad' : ''}" r="${f2(2 * k)}" filter="url(#mglow)"><animateMotion dur="${(2.6 + i * .35).toFixed(2)}s" repeatCount="indefinite" begin="${(1.8 + i * .3).toFixed(2)}s" keyPoints="0;1" keyTimes="0;1" calcMode="spline" keySplines=".4 0 .6 1"><mpath href="#rt${i}"/></animateMotion></circle>`).join('')}
+      <g class="m-lbls">${lbl(hq, ox, oy, 'FISCHER · PADOVA', 'hq')}${pts.map(q => lbl(q.l, q.x, q.y, q.p.n.toUpperCase(), q.st)).join('')}</g>
+      <g class="m-origin" transform="translate(${f1(ox)} ${f1(oy)})"><circle class="m-ring" r="${f2(5 * k)}"/><circle class="m-ring r2" r="${f2(5 * k)}"/><rect x="${f2(-4.2 * k)}" y="${f2(-4.2 * k)}" width="${f2(8.4 * k)}" height="${f2(8.4 * k)}" transform="rotate(45)"/></g>
+      ${pts.map((q, i) => `<g class="m-pin ${q.st}" data-mpz="${esc(q.p.n)}" transform="translate(${f1(q.x)} ${f1(q.y)})" tabindex="0" role="button" aria-label="${esc(q.p.n)}"><g class="m-pin-in" style="--d:${f2(1 + i * .05)}s">${q.st === 'go' || q.st === 'bad' ? `<circle class="m-halo" r="${f2(R(q))}"/>` : ''}<circle class="m-hit" r="${f2(R(q) + 5 * k)}"/><circle class="m-dot" r="${f2(R(q))}"/></g></g>`).join('')}
     </svg>`;
-    const mapStats = `<div class="mstat"><span><b>${num(goPts.length)}</b>${goPts.length === 1 ? 'spedizione in viaggio' : 'spedizioni in viaggio'}</span><span><b>${num(waitPts.length)}</b>in attesa di partire</span><span><b>${num(pts.filter(q => q.p.tot).length)}</b>piazzali serviti</span></div>`;
+    const mapStats = `<div class="mstat"><span><b>${num(goPts.length)}</b>in viaggio</span><span><b>${num(waitPts.length)}</b>in attesa</span><span><b>${num(pts.filter(q => q.p.tot).length)}</b>piazzali serviti</span></div>
+      <div class="mleg2"><span><i class="go"></i>In viaggio</span><span><i class="open"></i>In attesa</span><span><i class="bad"></i>In ritardo</span><span><i class="ok"></i>Consegnato</span><span><i class="hq"></i>Fischer Padova</span></div>`;
     const ranking = [...P.values()].filter(p => p.tot || p.last).sort((a, b) => b.a - a.a || b.pzA - a.pzA || a.n.localeCompare(b.n, 'it'));
     const maxA = Math.max(1, ...ranking.map(p => p.pzA));
-    const mapCard = `<section class="card mapc rv"><div class="card-h"><h3>Italia · piazzali e spedizioni</h3><span class="mleg"><i class="go"></i>in viaggio<i class="open"></i>in attesa<i class="bad"></i>in ritardo<i class="ok"></i>consegnato</span></div>
+    const mapCard = `<section class="card mapc rv"><div class="card-h"><h3>Italia · piazzali e spedizioni</h3><span class="muted small">aggiornata in tempo reale</span></div>
       <div class="mapw"><div class="mapbox"><div class="map3d">${mapSvg}</div>${mapStats}<div class="mtip" hidden></div><small class="mattr">Confini: ISTAT · Openpolis (CC BY 4.0)</small></div>
       <div class="mrank">${ranking.length ? ranking.map(p => `<button type="button" class="mr" data-pz="${esc(p.n)}"><span class="mr-h"><b>${esc(p.n)}</b>${p.lt ? '<span class="chip late">ritardo</span>' : p.v ? '<span class="chip blue">in viaggio</span>' : p.a ? '<span class="chip soon">aperti</span>' : '<span class="chip ok">ok</span>'}</span><span class="mr-s">${num(p.a)} ${p.a === 1 ? 'ordine aperto' : 'ordini aperti'} · ${num(p.pzA)} pz in arrivo${p.last ? ' · ultimo DDT ' + esc(dt(p.last)) : ''}</span><i class="mr-bar"><i style="--w:${(p.pzA / maxA * 100).toFixed(1)}%"></i></i></button>`).join('') : '<div class="empty">I piazzali compaiono quando carichi conferme e DDT</div>'}</div></div></section>`;
 
@@ -204,6 +178,13 @@
     // suggerimento sulla mappa
     const box = pan.querySelector('.mapbox'), tip = box && box.querySelector('.mtip');
     if (!box) return;
+    // schermi stretti: inquadra la zona dei piazzali, così etichette e punti restano leggibili
+    const svg = box.querySelector('.itmap');
+    if (svg && svg.clientWidth && svg.clientWidth < 560) {
+      const P = [...svg.querySelectorAll('.m-pin, .m-origin')].map(g => /translate\(([-\d.]+) ([-\d.]+)\)/.exec(g.getAttribute('transform'))).filter(Boolean).map(m => [+m[1], +m[2]]);
+      if (P.length) { const x0 = Math.min(...P.map(p => p[0])) - 30, x1 = Math.max(...P.map(p => p[0])) + 60, y0 = Math.min(...P.map(p => p[1])) - 34, y1 = Math.max(...P.map(p => p[1])) + 22, sz = Math.max(x1 - x0, y1 - y0, 150);
+        svg.setAttribute('viewBox', `${((x0 + x1) / 2 - sz / 2).toFixed(1)} ${((y0 + y1) / 2 - sz / 2).toFixed(1)} ${sz.toFixed(1)} ${sz.toFixed(1)}`); }
+    }
     const show = g => {
       const n = g.dataset.mpz, rr = [...pan.querySelectorAll('.mr')].find(b => b.dataset.pz === n);
       tip.innerHTML = `<b>${fmt.esc(n)}</b><span>${rr ? fmt.esc(rr.querySelector('.mr-s').textContent) : 'nessun ordine'}</span><small>Clic per vedere gli ordini</small>`;
@@ -219,11 +200,6 @@
       tip.hidden = false; tip.style.left = `${Math.min(b.width - 200, Math.max(0, p.left - b.left + p.width / 2 - 100))}px`; tip.style.top = `${Math.max(0, p.top - b.top + p.height / 2 - tip.offsetHeight - 6)}px`;
     };
     box.addEventListener('mouseover', e => { const g = e.target.closest('[data-mpz]'); if (g) return show(g); const r = e.target.closest('[data-reg]'); if (r) regTip(r); });
-    const m3 = box.querySelector('.map3d');
-    if (m3 && !reduce && matchMedia('(hover: hover)').matches) {
-      box.addEventListener('mousemove', e => { const b = box.getBoundingClientRect(), x = (e.clientX - b.left) / b.width - .5, y = (e.clientY - b.top) / b.height - .5; m3.style.setProperty('--tx', `${(-x * 8).toFixed(1)}px`); m3.style.setProperty('--ty', `${(-y * 6).toFixed(1)}px`); });
-      box.addEventListener('mouseleave', () => { m3.style.removeProperty('--tx'); m3.style.removeProperty('--ty'); });
-    }
     box.addEventListener('mouseout', e => { if (!e.relatedTarget || !e.relatedTarget.closest || !e.relatedTarget.closest('[data-mpz],[data-reg]')) hide(); });
     box.addEventListener('focusin', e => { const g = e.target.closest('[data-mpz]'); if (g) show(g); });
     box.addEventListener('focusout', hide);

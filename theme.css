@@ -260,76 +260,63 @@ input:focus, select:focus { outline: 2px solid color-mix(in srgb, var(--accent) 
   .gl-i em { display: none; } .gl-i { flex: 1 1 30%; }
 }
 
-/* ===================== mappa d'Italia ===================== */
-.mapbox { position: relative; overflow: hidden; border-radius: 24px; border: 1px solid rgba(255, 255, 255, .7); background: #e3eeee; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .9), 0 20px 40px -30px rgba(40, 60, 60, .5); }
-.map3d { transform: translate(var(--tx, 0px), var(--ty, 0px)); transform-origin: 50% 50%; transition: transform 1.1s var(--ease); }
-.mapbox { aspect-ratio: 1.28; } .map3d, .itmap { display: block; width: 100%; height: 100%; max-height: none; }
-.m-shadow { fill: rgba(30, 50, 50, .32); }
-.m-side { fill: #a9c6c1; }
-.m-reg { fill: url(#mland); stroke: #fff; stroke-width: calc(.55px * var(--z)); stroke-linejoin: round; cursor: default; transition: fill .3s, filter .3s; }
-.m-reg.has { fill: #f4fbf9; }
-.m-reg.open { fill: #fbf1dc; }
-.m-reg.go { fill: url(#mact); }
-.m-reg.bad { fill: #fbe1dd; }
-.m-reg:hover { filter: brightness(1.03) drop-shadow(0 0 calc(2px * var(--z)) rgba(20, 145, 127, .45)); }
-.m-sheen { animation: sheen 7s cubic-bezier(.6, 0, .4, 1) 2.6s infinite; }
-@keyframes sheen { 0% { transform: translateX(0); } 45%, 100% { transform: translateX(calc(var(--z) * 320px)); } }
-.m-wait { fill: none; stroke: #d6a03c; stroke-width: calc(.9px * var(--z)); stroke-dasharray: .006 .018; stroke-linecap: round; opacity: .75; }
-.m-glow { fill: none; stroke: #3fc4ae; stroke-width: calc(3.2px * var(--z)); opacity: .28; stroke-linecap: round; }
-.m-glow.bad { stroke: #ff7b6b; }
-.m-route { fill: none; stroke: url(#mroute); stroke-width: calc(1.5px * var(--z)); stroke-linecap: round; stroke-dasharray: .03 .018; animation: flow 1.4s linear infinite; }
-.m-route.bad { stroke: var(--danger); }
-@keyframes flow { to { stroke-dashoffset: -.048; } }
-.m-trail { fill: #14917f; } .m-trail.t0 { fill: #fff; stroke: #14917f; stroke-width: calc(1.3px * var(--z)); filter: drop-shadow(0 0 calc(2.4px * var(--z)) rgba(63, 196, 174, .9)); }
-.m-trail.t1 { opacity: .55; } .m-trail.t2 { opacity: .3; } .m-trail.t3 { opacity: .15; }
-.m-trail.bad { fill: var(--danger); } .m-trail.t0.bad { fill: #fff; stroke: var(--danger); }
-.m-radar { animation: radar 4s linear infinite; transform-origin: 0 0; }
-@keyframes radar { to { transform: rotate(-360deg); } }
-.m-ring { fill: none; stroke: #d52b1e; stroke-width: calc(.8px * var(--z)); animation: ring 3s ease-out infinite; transform-box: fill-box; transform-origin: center; }
-.m-ring.r2 { animation-delay: 1.5s; }
-@keyframes ring { from { transform: scale(.7); opacity: .9; } to { transform: scale(4.2); opacity: 0; } }
-.m-hq rect { fill: #d52b1e; stroke: #fff; stroke-width: calc(1.4px * var(--z)); filter: drop-shadow(0 calc(1.5px * var(--z)) calc(2px * var(--z)) rgba(120, 20, 10, .45)); }
-.m-hq text { fill: #fff; font-size: calc(8px * var(--z)); font-weight: 800; font-style: italic; }
-.m-hq-l { font-size: calc(7.6px * var(--z)); font-weight: 800; fill: #c4261b; paint-order: stroke; stroke: rgba(255, 255, 255, .92); stroke-width: calc(3px * var(--z)); stroke-linejoin: round; letter-spacing: .02em; }
-.m-pin { cursor: pointer; outline: none; }
-.m-pin-in { transition: transform .35s var(--spring); }
-.m-pin:hover .m-pin-in, .m-pin:focus .m-pin-in, .m-pin.hl .m-pin-in { transform: translateY(calc(-2px * var(--z))) scale(1.12); }
-.m-foot { fill: rgba(20, 40, 40, .28); filter: blur(calc(.6px * var(--z))); }
-.m-head { fill: var(--c); stroke: #fff; stroke-width: calc(1.2px * var(--z)); filter: drop-shadow(0 calc(2px * var(--z)) calc(2.5px * var(--z)) rgba(20, 30, 30, .35)); }
-.m-eye { fill: #fff; }
-.m-n { font-size: calc(7.4px * var(--z)) !important; font-weight: 800; fill: var(--c) !important; }
-.m-pin.go { --c: #14917f; } .m-pin.open { --c: #d6a03c; } .m-pin.bad { --c: #cf3f3a; } .m-pin.ok { --c: #16895a; } .m-pin.idle { --c: #b3aaa0; }
-.m-dot { fill: var(--c); stroke: #fff; stroke-width: calc(1.2px * var(--z)); filter: drop-shadow(0 calc(1px * var(--z)) calc(1.5px * var(--z)) rgba(20, 30, 30, .3)); }
-.m-ck { fill: none; stroke: #fff; stroke-width: calc(1.1px * var(--z)); stroke-linecap: round; stroke-linejoin: round; }
-.m-pulse { fill: none; stroke: var(--c); stroke-width: calc(1.2px * var(--z)); animation: mpulse 2.2s ease-out infinite; transform-box: fill-box; transform-origin: center; }
-.m-lbl { font-size: calc(8.2px * var(--z)); font-weight: 650; fill: #1d2a2a; paint-order: stroke; stroke: rgba(255, 255, 255, .92); stroke-width: calc(3.2px * var(--z)); stroke-linejoin: round; pointer-events: none; }
-.m-pin.idle .m-lbl { fill: #7d8a88; font-weight: 500; }
-.mstat { position: absolute; left: 14px; top: 14px; display: flex; flex-wrap: wrap; gap: 6px; pointer-events: none; }
-.mstat span { display: inline-flex; align-items: baseline; gap: 6px; height: 32px; padding: 0 13px; border-radius: 999px; font-size: 12px; color: var(--ink-2); background: rgba(255, 255, 255, .72); backdrop-filter: blur(10px); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .9), 0 8px 18px -12px rgba(30, 50, 50, .5); line-height: 32px; }
-.mstat b { font-size: 15px; color: var(--ink); }
-.mattr { position: absolute; right: 12px; bottom: 8px; font-size: 10px; color: rgba(40, 60, 60, .55); pointer-events: none; }
-.mtip { backdrop-filter: blur(12px); background: rgba(23, 20, 17, .88); }
+/* ===================== mappa d'Italia — stile «centro di controllo» ===================== */
+.mapw { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); }
+.mapbox { position: relative; overflow: hidden; aspect-ratio: 1; border-radius: 24px; background: #0d151c; border: 1px solid rgba(255, 255, 255, .08); box-shadow: 0 30px 60px -34px rgba(10, 20, 28, .9), inset 0 1px 0 rgba(255, 255, 255, .06); }
+.map3d, .itmap { display: block; width: 100%; height: 100%; max-height: none !important; }
+.m-reg { fill: url(#mland); stroke: #3d5363; stroke-width: calc(.45px * var(--k)); stroke-linejoin: round; transition: fill .35s ease; }
+.m-reg.has { fill: #2c3f4c; } .m-reg.open { fill: #34404a; } .m-reg.go { fill: #23434a; } .m-reg.bad { fill: #3d2f33; }
+.m-reg:hover { fill: #36505e; }
+.m-wait { fill: none; stroke: #f0b54a; stroke-opacity: .55; stroke-width: calc(.8px * var(--k)); stroke-dasharray: .008 .016; stroke-linecap: round; }
+.m-route { fill: none; stroke: url(#marc); stroke-width: calc(1.1px * var(--k)); stroke-linecap: round; }
+.m-route.bad { stroke: #ff6b5f; stroke-opacity: .8; }
+.m-comet { fill: #d9fff7; } .m-comet.bad { fill: #ffd2cc; }
+.m-origin rect { fill: #e2231a; stroke: #fff; stroke-width: calc(1.2px * var(--k)); }
+.m-ring { fill: none; stroke: #e2231a; stroke-width: calc(.7px * var(--k)); animation: ring 3.2s ease-out infinite; transform-box: fill-box; transform-origin: center; }
+.m-ring.r2 { animation-delay: 1.6s; }
+@keyframes ring { from { transform: scale(1); opacity: .8; } to { transform: scale(4.5); opacity: 0; } }
+.m-pin { cursor: pointer; outline: none; --c: #64748b; }
+.m-pin.go { --c: #3fc4ae; } .m-pin.open { --c: #f0b54a; } .m-pin.bad { --c: #ff5a4f; } .m-pin.ok { --c: #4fd08a; } .m-pin.idle { --c: #5f6f7c; }
+.m-hit { fill: transparent; }
+.m-dot { fill: var(--c); stroke: #0d151c; stroke-width: calc(1.1px * var(--k)); transition: transform .3s var(--spring); transform-box: fill-box; transform-origin: center; }
+.m-pin.go .m-dot, .m-pin.bad .m-dot, .m-pin.open .m-dot { filter: drop-shadow(0 0 calc(3px * var(--k)) var(--c)); }
+.m-halo { fill: var(--c); opacity: .35; animation: halo 2.6s ease-out infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes halo { from { transform: scale(1); opacity: .45; } to { transform: scale(3.4); opacity: 0; } }
+.m-pin:hover .m-dot, .m-pin:focus .m-dot, .m-pin.hl .m-dot { transform: scale(1.5); }
+.m-lead { stroke: rgba(200, 220, 230, .35); stroke-width: calc(.5px * var(--k)); }
+.m-lbl { font-size: calc(10.5px * var(--k)); font-weight: 600; letter-spacing: .06em; fill: #d7e2ea; pointer-events: none; }
+.m-lbl.idle { fill: #73838f; font-weight: 500; } .m-lbl.ok { fill: #a9bac5; }
+.m-lbl.go { fill: #9ff0e2; } .m-lbl.bad { fill: #ffb3ab; } .m-lbl.open { fill: #ffe0a3; }
+.m-lbl.hq { fill: #fff; font-weight: 700; letter-spacing: .1em; }
+.mstat { position: absolute; left: 16px; top: 16px; display: flex; gap: 6px; flex-wrap: wrap; pointer-events: none; }
+.mstat span { display: inline-flex; align-items: baseline; gap: 6px; height: 30px; line-height: 30px; padding: 0 12px; border-radius: 999px; font-size: 12px; color: rgba(215, 226, 234, .75); background: rgba(255, 255, 255, .06); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .1); backdrop-filter: blur(8px); }
+.mstat b { font-size: 14px; font-weight: 600; color: #fff; }
+.mleg2 { position: absolute; left: 16px; bottom: 14px; display: flex; flex-direction: column; gap: 5px; padding: 10px 12px; border-radius: 14px; background: rgba(13, 21, 28, .7); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08); backdrop-filter: blur(8px); font-size: 11.5px; color: rgba(215, 226, 234, .8); pointer-events: none; }
+.mleg2 i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; vertical-align: 0; }
+.mleg2 i.go { background: #3fc4ae; box-shadow: 0 0 6px #3fc4ae; } .mleg2 i.open { background: #f0b54a; } .mleg2 i.bad { background: #ff5a4f; } .mleg2 i.ok { background: #4fd08a; } .mleg2 i.hq { background: #e2231a; border-radius: 1px; transform: rotate(45deg) scale(.85); }
+.mattr { position: absolute; right: 14px; bottom: 10px; font-size: 10px; color: rgba(215, 226, 234, .35); pointer-events: none; }
+.mtip { background: rgba(244, 248, 250, .96); color: #142028; box-shadow: 0 18px 40px -16px rgba(0, 0, 0, .6); }
+.mtip span { opacity: .75; } .mtip small { opacity: .5; }
+.mrank { max-height: none; }
 
-/* entrata: regioni a onda da nord a sud con i confini che si disegnano, poi rilievo, percorsi e spilli */
-.pan.go .m-sea { animation: fadeIn 1s var(--ease) .2s backwards; }
-.pan.go .m-reg { animation: regIn .9s var(--ease) backwards, regLine 1.4s var(--ease) backwards; animation-delay: calc(.35s + var(--dl)); transform-box: fill-box; transform-origin: center; }
-@keyframes regIn { from { opacity: 0; transform: translateY(-5%) scale(.94); } }
-@keyframes regLine { from { stroke-dasharray: 1; stroke-dashoffset: 1; stroke: #14917f; } to { stroke-dasharray: 1; stroke-dashoffset: 0; } }
-.pan.go .m-side, .pan.go .m-shadow { animation: fadeIn 1s var(--ease) 1.1s backwards; }
-.pan.go .m-route { animation: draw 1.1s var(--ease) backwards, flow 1.4s linear infinite; animation-delay: var(--d), calc(var(--d) + 1.1s); }
-.pan.go .m-glow { animation: fadeIn 1s var(--ease) 1.6s backwards; }
-.pan.go .m-wait { animation: fadeIn .8s var(--ease) backwards; animation-delay: var(--d); }
+/* entrata discreta */
+.pan.go .m-terra { animation: fadeIn 1.2s var(--ease) .15s backwards; }
+.pan.go .m-reg { animation: regIn 1s var(--ease) backwards; animation-delay: calc(.2s + var(--i) * 25ms); }
+@keyframes regIn { from { opacity: 0; } }
+.pan.go .m-route, .pan.go .m-wait { animation: draw 1.2s var(--ease) backwards; animation-delay: var(--d); }
 @keyframes draw { from { stroke-dasharray: 0 1; } to { stroke-dasharray: 1 0; } }
-.pan.go .m-pin-in { animation: pinDrop .9s var(--spring) backwards; animation-delay: var(--d); }
-@keyframes pinDrop { 0% { opacity: 0; transform: translateY(calc(-26px * var(--z))) scale(.6); } 60% { opacity: 1; } }
-.pan.go .m-origin { animation: popIn .8s var(--spring) .9s backwards; transform-box: fill-box; transform-origin: center; }
-.pan.go .mstat span { animation: rise .7s var(--ease) backwards; } .pan.go .mstat span:nth-child(2) { animation-delay: .1s; } .pan.go .mstat span:nth-child(3) { animation-delay: .2s; }
+.pan.go .m-wait { animation-name: fadeIn; }
+.pan.go .m-pin-in { animation: dotIn .6s var(--spring) backwards; animation-delay: var(--d); }
+@keyframes dotIn { from { opacity: 0; transform: scale(0); } }
+.pan.go .m-lbls { animation: fadeIn .8s var(--ease) 1.3s backwards; }
+.pan.go .m-origin { animation: fadeIn .6s var(--ease) .7s backwards; }
+.pan.go .mstat span, .pan.go .mleg2 { animation: rise .7s var(--ease) .5s backwards; }
 @keyframes fadeIn { from { opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { .map3d { transform: none; } .m-trail, .m-radar, .m-sheen { display: none; } }
-@media (max-width: 820px) { .mstat { left: 8px; top: 8px; } .mstat span { height: 26px; line-height: 26px; padding: 0 9px; font-size: 11px; } .mstat b { font-size: 13px; } }
+@media (prefers-reduced-motion: reduce) { .m-comet { display: none; } }
 @media (max-width: 820px) {
-  .mapbox { aspect-ratio: auto; display: flex; flex-direction: column; }
-  .mapbox .mstat { position: static; order: -1; padding: 8px 8px 0; }
-  .map3d, .itmap { height: auto; }
-  .mapc .card-h { flex-direction: column; align-items: flex-start; gap: 6px; }
+  .mapw { grid-template-columns: 1fr; }
+  .mleg2 { flex-direction: row; flex-wrap: wrap; gap: 4px 10px; right: 10px; left: 10px; bottom: 10px; padding: 8px 10px; font-size: 10.5px; }
+  .mstat { left: 10px; top: 10px; } .mstat span { height: 26px; line-height: 26px; padding: 0 9px; font-size: 11px; } .mstat b { font-size: 12.5px; }
+  .mattr { display: none; }
 }
+.mapbox .m-lbl { paint-order: stroke; stroke: #0f1a22; stroke-width: calc(3px * var(--k)); stroke-linejoin: round; stroke-opacity: .85; }
