@@ -39,7 +39,7 @@ body { font-family: var(--font); background: transparent; color: var(--ink); min
 
 /* ---------------- la stanza ---------------- */
 body::before, body::after { content: ''; position: fixed; inset: 0; pointer-events: none; }
-body::before { z-index: -2; background: url('bg.jpg') center / cover no-repeat; animation: roomIn 1.8s var(--ease) both; }
+body::before { z-index: -2; }
 body::after { z-index: -1; background: linear-gradient(180deg, rgba(40, 30, 20, 0.08), rgba(40, 30, 20, 0.22)); }
 @keyframes roomIn { from { opacity: 0; transform: scale(1.08); filter: blur(14px); } }
 :root { --zz: 1; } @media (min-width: 981px) { :root { --zz: .88; } }
