@@ -423,3 +423,6 @@ body::after { display: none; }
 @media (max-width: 640px) { .g3a { flex-direction: column; } }
 .ach-svg { height: auto; } .ach-cur[hidden], .ach-dot[hidden] { display: none; }
 .ach-y, .ach-x { font-size: 12px; }
+.invite { display: flex; gap: 8px; } .invite input { flex: 1; min-width: 0; font-size: 12.5px; color: var(--muted); }
+.adv summary { cursor: pointer; font-size: 12.5px; color: var(--muted); margin-bottom: 6px; }
+.dlg p b { color: var(--ink); }

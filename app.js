@@ -22,7 +22,13 @@
   const clone = o => JSON.parse(JSON.stringify(o));
 
   /* ---------- archivio: Google Foglio (Apps Script) o prova nel browser ---------- */
+  // indirizzo dell'app web dello script Google (non è segreto: senza il codice di accesso non apre nulla)
+  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyXc-j_cRU_6sTQn-u1KV8SIGySOqK1wBXJ2waKlVLn5QnO946yS5Vb1WRh6J8nBl4OEA/exec';
   let cfg = LS.get('fo_cfg', {});   // { url, key } oppure { prova: true }
+  // link di invito: …/#accesso=CODICE → si collega da solo; il codice viene tolto subito dalla barra degli indirizzi
+  (() => { const m = /[#&]accesso=([^&]+)/.exec(location.hash); if (!m) return; cfg = { url: SCRIPT_URL, key: decodeURIComponent(m[1]) }; LS.set('fo_cfg', cfg); try { history.replaceState(null, '', location.pathname + location.search); } catch { } })();
+  if (cfg.key && !cfg.url) cfg.url = SCRIPT_URL;
+  const inviteLink = () => `${location.origin}${location.pathname}#accesso=${encodeURIComponent(cfg.key || '')}`;
   const mode = () => cfg.url && cfg.key ? 'google' : cfg.prova ? 'prova' : '';
   async function post(action, extra) {
     const r = await fetch(cfg.url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action, key: cfg.key, ...extra }), credentials: 'omit', referrerPolicy: 'no-referrer' });
@@ -396,21 +402,30 @@
   }
   /* ---------- collegamento al Google Foglio ---------- */
   function setup() {
-    const d = document.createElement('div'); d.className = 'dlg';
-    d.innerHTML = `<form><h3>Collegamento al Google Foglio</h3>
-      <p>Incolla l'indirizzo dell'app web dello script Google e il codice di accesso (quello scritto nelle proprietà dello script). Si salvano solo in questo browser.</p>
-      <label class="fld"><small>Indirizzo dello script (https://script.google.com/macros/s/…/exec)</small><input type="url" name="url" value="${esc(cfg.url || '')}" required></label>
+    const d = document.createElement('div'), on = mode() === 'google'; d.className = 'dlg';
+    d.innerHTML = on ? `<form><h3>Collegato al Google Foglio</h3>
+      <p>Per far entrare un collega senza fargli inserire niente, mandagli il <b>link di invito</b>: contiene già il codice di accesso. Chi ha questo link può vedere e modificare ordini e DDT, quindi mandalo solo alle persone giuste.</p>
+      <div class="invite"><input type="text" readonly value="${esc(inviteLink())}" aria-label="Link di invito"><button type="button" class="btn primary" data-copy>Copia link di invito</button></div>
+      <div class="row"><button type="button" class="btn sm danger" data-out>Scollega questo browser</button><button type="button" class="btn sm" data-x>Chiudi</button></div></form>`
+      : `<form><h3>Accesso</h3>
+      <p>Se un collega ti ha mandato il link di invito, aprilo e entri subito. Altrimenti inserisci il codice di accesso.</p>
       <label class="fld"><small>Codice di accesso</small><input type="password" name="key" value="${esc(cfg.key || '')}" required autocomplete="off"></label>
-      <div class="row"><button type="button" class="btn sm" data-prova>Usa in prova (senza Google)</button>${mode() ? '<button type="button" class="btn sm" data-x>Annulla</button>' : ''}<button class="btn primary">Collega</button></div></form>`;
+      <details class="adv"><summary>Indirizzo dello script (avanzate)</summary><label class="fld"><small>https://script.google.com/macros/s/…/exec</small><input type="url" name="url" value="${esc(cfg.url || SCRIPT_URL)}"></label></details>
+      <div class="row"><button type="button" class="btn sm" data-prova>Usa in prova (senza Google)</button>${mode() ? '<button type="button" class="btn sm" data-x>Annulla</button>' : ''}<button class="btn primary">Entra</button></div></form>`;
     document.body.appendChild(d);
     const f = d.querySelector('form');
-    d.addEventListener('click', e => { if (e.target.closest('[data-x]')) d.remove(); if (e.target.closest('[data-prova]')) { cfg = { prova: true }; LS.set('fo_cfg', cfg); d.remove(); boot(); } });
-    f.addEventListener('submit', async e => {
-      e.preventDefault(); const url = f.url.value.trim(), key = f.key.value.trim();
+    d.addEventListener('click', async e => {
+      if (e.target.closest('[data-x]')) d.remove();
+      if (e.target.closest('[data-prova]')) { cfg = { prova: true }; LS.set('fo_cfg', cfg); d.remove(); boot(); }
+      if (e.target.closest('[data-out]') && confirm('Scollegare questo browser? I dati restano nel Google Foglio.')) { cfg = {}; LS.set('fo_cfg', cfg); DOCS = new Map(); d.remove(); boot(); }
+      if (e.target.closest('[data-copy]')) { const i = d.querySelector('.invite input'); try { await navigator.clipboard.writeText(i.value); toast('Link di invito copiato: incollalo in un messaggio al collega'); } catch { i.select(); document.execCommand('copy'); toast('Link di invito copiato'); } }
+    });
+    if (!on) f.addEventListener('submit', async e => {
+      e.preventDefault(); const url = (f.url.value || SCRIPT_URL).trim(), key = f.key.value.trim();
       if (!/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(url)) return toast('L\'indirizzo deve essere quello dell\'app web: https://script.google.com/macros/s/…/exec');
       const old = cfg; cfg = { url, key };
       try { busy('Controllo il collegamento…'); await post('ping'); LS.set('fo_cfg', cfg); d.remove(); boot(); }
-      catch (err) { cfg = old; toast('Collegamento non riuscito: ' + err.message); }
+      catch (err) { cfg = old; toast('Accesso non riuscito: ' + err.message); }
       finally { busy(); }
     });
   }
