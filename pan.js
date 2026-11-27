@@ -83,7 +83,7 @@
     const pins = [...P.values()].map(p => ({ ...p, g: GEO[p.k] })).filter(p => p.g);
     const [ox, oy] = proj(ORIGIN);
     // tutta l'Italia, quadrata; k = unità della mappa per pixel (la mappa è larga circa 640 px)
-    const VX = 26, VY = 4, VS = 432, k = VS / 640, f1 = n => n.toFixed(1), f2 = n => n.toFixed(2);
+    const VX = 40, VY = 9, VW = 226, VH = 214, k = VW / 700, f1 = n => n.toFixed(1), f2 = n => n.toFixed(2);
     const pts = pins.map(p => { const [x, y] = proj(p.g); return { p, x, y, st: p.lt ? 'bad' : p.v ? 'go' : p.a ? 'open' : p.tot ? 'ok' : 'idle' }; });
     const R = q => (q.st === 'idle' ? 2.6 : q.st === 'ok' ? 3.2 : 4.2) * k;
     // etichette: posizione con il minimo di sovrapposizioni, anche lontana dal punto con un filo di richiamo
@@ -95,7 +95,7 @@
       [10, 18, 30, 44].forEach((d, di) => [0, 180, -35, 35, 145, -145, -90, 90].forEach(a => {
         const r = a * Math.PI / 180, ex = x + Math.cos(r) * d * k, ey = y + Math.sin(r) * d * k, left = Math.cos(r) < -.2, right = Math.cos(r) > .2;
         const bx = left ? ex - w : right ? ex : ex - w / 2, by = ey - LH / 2, b = box(bx, by, w, LH);
-        const out = bx < VX + 4 * k || bx + w > VX + VS - 4 * k || by < VY + 40 * k ? 1e6 : 0;
+        const out = bx < VX + 4 * k || bx + w > VX + VW - 6 * k || by < VY + 46 * k || by + LH > VY + VH - 6 * k ? 1e6 : 0;
         const c = taken.reduce((s, t) => s + over(b, t), 0) * 10 + out + di * 30 * k * k + Math.abs(a) * .02 * k;
         if (!best || c < best.c) best = { c, b, ex, ey, an: left ? 'end' : right ? 'start' : 'middle', d };
       }));
@@ -106,8 +106,8 @@
     const regSt = {}; pts.forEach(q => { const r = q.p.g[3]; if (!r) return; const o = regSt[r] || (regSt[r] = { a: 0, v: 0, lt: 0 }); o.a += q.p.a; o.v += q.p.v; o.lt += q.p.lt; });
     const arc = (x, y) => { const dx = x - ox, dy = y - oy, d = Math.hypot(dx, dy), bend = Math.min(.3, 18 / Math.max(d, 1)) * d; const mx = (ox + x) / 2 - dy / d * bend, my = (oy + y) / 2 + dx / d * bend * (dx > 0 ? -1 : 1); return `M${f1(ox)} ${f1(oy)}Q${f1(mx)} ${f1(my)} ${f1(x)} ${f1(y)}`; };
     const goPts = pts.filter(q => q.p.v), waitPts = pts.filter(q => !q.p.v && q.p.a);
-    const lbl = (l, x, y, txt, cls) => `${l.d > 12 ? `<path class="m-lead" d="M${f1(x)} ${f1(y)}L${f1(l.ex)} ${f1(l.ey)}"/>` : ''}<text class="m-lbl${cls ? ' ' + cls : ''}" x="${f1(l.an === 'start' ? l.ex + 2 * k : l.an === 'end' ? l.ex - 2 * k : l.ex)}" y="${f1(l.ey + F * .36)}" text-anchor="${l.an}">${esc(txt)}</text>`;
-    const mapSvg = `<svg class="itmap" viewBox="${VX} ${VY} ${VS} ${VS}" preserveAspectRatio="xMidYMid meet" style="--k:${f2(k)}" role="img" aria-label="Mappa dei piazzali e delle spedizioni in viaggio">
+    const lbl = (l, x, y, txt, cls) => `${l.d > 12 ? `<path class="m-lead" d="M${f1(x)} ${f1(y)}L${f1(l.ex)} ${f1(l.ey)}"/>` : ''}<text class="m-lbl${cls ? ' ' + cls : ''}" data-px="${f1(x)}" x="${f1(l.an === 'start' ? l.ex + 2 * k : l.an === 'end' ? l.ex - 2 * k : l.ex)}" y="${f1(l.ey + F * .36)}" text-anchor="${l.an}">${esc(txt)}</text>`;
+    const mapSvg = `<svg class="itmap" viewBox="${VX} ${VY} ${VW} ${VH}" preserveAspectRatio="xMidYMid slice" style="--k:${f2(k)}" role="img" aria-label="Mappa dei piazzali e delle spedizioni in viaggio">
       <defs>
         <radialGradient id="msea" cx=".55" cy=".35" r=".8"><stop offset="0" stop-color="#1b2a36"/><stop offset="1" stop-color="#0d151c"/></radialGradient>
         <linearGradient id="mland" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2b3c49"/><stop offset="1" stop-color="#223240"/></linearGradient>
@@ -115,8 +115,8 @@
         <filter id="mglow" x="-300%" y="-300%" width="700%" height="700%"><feGaussianBlur stdDeviation="${f2(2.2 * k)}" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
         <filter id="mland-sh" x="-10%" y="-10%" width="120%" height="120%"><feDropShadow dx="0" dy="${f2(3 * k)}" stdDeviation="${f2(5 * k)}" flood-color="#000" flood-opacity=".55"/></filter>
       </defs>
-      <rect class="m-sea" x="${VX}" y="${VY}" width="${VS}" height="${VS}" fill="url(#msea)"/>
-      <g class="m-terra" filter="url(#mland-sh)">${REG.map((r, i) => { const o = regSt[r.n]; return `<path class="m-reg${o ? (o.lt ? ' bad' : o.v ? ' go' : o.a ? ' open' : ' has') : ''}" d="${r.d}" data-reg="${esc(r.n)}" style="--i:${i}"/>`; }).join('')}</g>
+      <rect class="m-sea" x="${VX - 20}" y="${VY - 20}" width="${VW + 40}" height="${VH + 40}" fill="url(#msea)"/>
+      <g class="m-terra" filter="url(#mland-sh)">${REG.filter(r => !/Sicilia|Sardegna|Calabria|Basilicata/.test(r.n)).map((r, i) => { const o = regSt[r.n]; return `<path class="m-reg${o ? (o.lt ? ' bad' : o.v ? ' go' : o.a ? ' open' : ' has') : ''}" d="${r.d}" data-reg="${esc(r.n)}" style="--i:${i}"/>`; }).join('')}</g>
       ${waitPts.map((q, i) => `<path class="m-wait" d="${arc(q.x, q.y)}" pathLength="1" style="--d:${f2(.9 + i * .1)}s"/>`).join('')}
       ${goPts.map((q, i) => `<path id="rt${i}" class="m-route${q.p.lt ? ' bad' : ''}" d="${arc(q.x, q.y)}" pathLength="1" style="--d:${f2(.8 + i * .15)}s"/>`).join('')}
       ${goPts.map((q, i) => `<circle class="m-comet${q.p.lt ? ' bad' : ''}" r="${f2(2 * k)}" filter="url(#mglow)"><animateMotion dur="${(2.6 + i * .35).toFixed(2)}s" repeatCount="indefinite" begin="${(1.8 + i * .3).toFixed(2)}s" keyPoints="0;1" keyTimes="0;1" calcMode="spline" keySplines=".4 0 .6 1"><mpath href="#rt${i}"/></animateMotion></circle>`).join('')}
@@ -130,7 +130,7 @@
     const maxA = Math.max(1, ...ranking.map(p => p.pzA));
     const mapCard = `<section class="card mapc rv"><div class="card-h"><h3>Italia · piazzali e spedizioni</h3><span class="muted small">aggiornata in tempo reale</span></div>
       <div class="mapw"><div class="mapbox"><div class="map3d">${mapSvg}</div>${mapStats}<div class="mtip" hidden></div><small class="mattr">Confini: ISTAT · Openpolis (CC BY 4.0)</small></div>
-      <div class="mrank">${ranking.length ? ranking.map(p => `<button type="button" class="mr" data-pz="${esc(p.n)}"><span class="mr-h"><b>${esc(p.n)}</b>${p.lt ? '<span class="chip late">ritardo</span>' : p.v ? '<span class="chip blue">in viaggio</span>' : p.a ? '<span class="chip soon">aperti</span>' : '<span class="chip ok">ok</span>'}</span><span class="mr-s">${num(p.a)} ${p.a === 1 ? 'ordine aperto' : 'ordini aperti'} · ${num(p.pzA)} pz in arrivo${p.last ? ' · ultimo DDT ' + esc(dt(p.last)) : ''}</span><i class="mr-bar"><i style="--w:${(p.pzA / maxA * 100).toFixed(1)}%"></i></i></button>`).join('') : '<div class="empty">I piazzali compaiono quando carichi conferme e DDT</div>'}</div></div></section>`;
+      <div class="mrank-w"><div class="mrank">${ranking.length ? ranking.map(p => `<button type="button" class="mr" data-pz="${esc(p.n)}"><span class="mr-h"><b>${esc(p.n)}</b>${p.lt ? '<span class="chip late">ritardo</span>' : p.v ? '<span class="chip blue">in viaggio</span>' : p.a ? '<span class="chip soon">aperti</span>' : '<span class="chip ok">ok</span>'}</span><span class="mr-s">${num(p.a)} ${p.a === 1 ? 'ordine aperto' : 'ordini aperti'} · ${num(p.pzA)} pz in arrivo${p.last ? ' · ultimo DDT ' + esc(dt(p.last)) : ''}</span><i class="mr-bar"><i style="--w:${(p.pzA / maxA * 100).toFixed(1)}%"></i></i></button>`).join('') : '<div class="empty">I piazzali compaiono quando carichi conferme e DDT</div>'}</div></div></div></section>`;
 
     // grafici: ordini per stato, mese per mese, puntualità
     const stN = ['confermato', 'spedito', 'consegnato', 'annullato'].map(k => [k, O.filter(o => o.stato === k).length]);
@@ -178,12 +178,11 @@
     // suggerimento sulla mappa
     const box = pan.querySelector('.mapbox'), tip = box && box.querySelector('.mtip');
     if (!box) return;
-    // schermi stretti: inquadra la zona dei piazzali, così etichette e punti restano leggibili
+    // schermi stretti: le etichette che escono dal bordo destro passano a sinistra del punto
     const svg = box.querySelector('.itmap');
-    if (svg && svg.clientWidth && svg.clientWidth < 560) {
-      const P = [...svg.querySelectorAll('.m-pin, .m-origin')].map(g => /translate\(([-\d.]+) ([-\d.]+)\)/.exec(g.getAttribute('transform'))).filter(Boolean).map(m => [+m[1], +m[2]]);
-      if (P.length) { const x0 = Math.min(...P.map(p => p[0])) - 30, x1 = Math.max(...P.map(p => p[0])) + 60, y0 = Math.min(...P.map(p => p[1])) - 34, y1 = Math.max(...P.map(p => p[1])) + 22, sz = Math.max(x1 - x0, y1 - y0, 150);
-        svg.setAttribute('viewBox', `${((x0 + x1) / 2 - sz / 2).toFixed(1)} ${((y0 + y1) / 2 - sz / 2).toFixed(1)} ${sz.toFixed(1)} ${sz.toFixed(1)}`); }
+    if (svg && svg.clientWidth < 560) {
+      const vb = svg.viewBox.baseVal, right = vb.x + vb.width;
+      svg.querySelectorAll('.m-lbl').forEach(t => { try { const bb = t.getBBox(); if (bb.x + bb.width > right - 2) { t.setAttribute('text-anchor', 'end'); t.setAttribute('x', (+t.dataset.px - 6 * vb.width / 700).toFixed(1)); } } catch { } });
     }
     const show = g => {
       const n = g.dataset.mpz, rr = [...pan.querySelectorAll('.mr')].find(b => b.dataset.pz === n);
