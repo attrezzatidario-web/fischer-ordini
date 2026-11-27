@@ -341,6 +341,7 @@
     app.classList.toggle('settled', app.dataset.k === key); app.dataset.k = key;
     app.innerHTML = `${pageHead(doc)}${body}`;
     navSync(true);
+    app.querySelectorAll('table.mx').forEach(t => { const H = [...t.querySelectorAll('thead th')].map(th => th.textContent.trim()); t.querySelectorAll('tbody tr').forEach(tr => [...tr.children].forEach((td, i) => { if (H[i]) td.dataset.label = H[i]; })); });
     if (!doc && V.tab === 'pan') { FPAN.after(app, V.anim, { eur, num, esc }); V.anim = false; }
   }
   addEventListener('resize', () => navSync(false));

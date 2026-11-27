@@ -166,7 +166,7 @@
     const prevFrom = new Date(weeks[0].d); prevFrom.setDate(prevFrom.getDate() - 84);
     const prev12 = O.filter(o => o.stato !== 'annullato' && o.data && o.data >= iso(prevFrom) && o.data < weeks[0].k).reduce((a, o) => a + (o.imponibile || 0), 0);
     const delta = prev12 ? Math.round((tot12 - prev12) / prev12 * 100) : null;
-    const W = 1000, Hh = 200, PL = 44, PR = 10, PT = 14, PB = 26, vmax = (() => { const m = Math.max(1, ...weeks.map(w => w.v)); const e = Math.pow(10, Math.floor(Math.log10(m))); return Math.ceil(m / e / (m / e > 5 ? 2 : 1)) * e * (m / e > 5 ? 2 : 1); })();
+    const narrow = typeof innerWidth === 'number' && innerWidth < 700, W = narrow ? 420 : 1000, Hh = narrow ? 230 : 200, PL = 44, PR = 10, PT = 14, PB = 26, vmax = (() => { const m = Math.max(1, ...weeks.map(w => w.v)); const e = Math.pow(10, Math.floor(Math.log10(m))); return Math.ceil(m / e / (m / e > 5 ? 2 : 1)) * e * (m / e > 5 ? 2 : 1); })();
     const px = i => PL + i * (W - PL - PR) / (weeks.length - 1), py = v => PT + (Hh - PT - PB) * (1 - v / vmax);
     const WP = weeks.map((w, i) => [px(i), py(w.v)]);
     const smooth = WP.reduce((acc, p, i, a) => { if (!i) return `M${p[0].toFixed(1)} ${p[1].toFixed(1)}`; const p0 = a[i - 2] || a[i - 1], p1 = a[i - 1], p3 = a[i + 1] || p; const c1 = [p1[0] + (p[0] - p0[0]) / 6, p1[1] + (p[1] - p0[1]) / 6], c2 = [p[0] - (p3[0] - p1[0]) / 6, p[1] - (p3[1] - p1[1]) / 6]; return acc + `C${c1[0].toFixed(1)} ${Math.min(Hh - PB, c1[1]).toFixed(1)} ${c2[0].toFixed(1)} ${Math.min(Hh - PB, c2[1]).toFixed(1)} ${p[0].toFixed(1)} ${p[1].toFixed(1)}`; }, '');
@@ -175,7 +175,7 @@
       <div class="ach"><svg viewBox="0 0 ${W} ${Hh}" class="ach-svg" data-pts='${JSON.stringify(weeks.map((w, i) => [+px(i).toFixed(1), +py(w.v).toFixed(1), w.d.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' }), eur(w.v), w.n, w.s]))}'>
         <defs><linearGradient id="achg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#14917f" stop-opacity=".32"/><stop offset="1" stop-color="#14917f" stop-opacity="0"/></linearGradient></defs>
         ${[0, .25, .5, .75, 1].map(f => `<line class="ach-grid" x1="${PL}" x2="${W - PR}" y1="${py(vmax * f).toFixed(1)}" y2="${py(vmax * f).toFixed(1)}"/><text class="ach-y" x="${PL - 8}" y="${(py(vmax * f) + 3.5).toFixed(1)}" text-anchor="end">${kfmt(vmax * f)}</text>`).join('')}
-        ${weeks.map((w, i) => i % 2 ? '' : `<text class="ach-x" x="${px(i).toFixed(1)}" y="${Hh - 6}" text-anchor="middle">${w.d.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}</text>`).join('')}
+        ${weeks.map((w, i) => i % (narrow ? 3 : 2) ? '' : `<text class="ach-x" x="${px(i).toFixed(1)}" y="${Hh - 6}" text-anchor="middle">${w.d.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}</text>`).join('')}
         ${weeks.map((w, i) => w.s ? `<rect class="ach-ddt" x="${(px(i) - 3).toFixed(1)}" width="6" y="${(Hh - PB - Math.min(30, w.s * 8)).toFixed(1)}" height="${Math.min(30, w.s * 8)}" rx="2" style="--i:${i}"/>` : '').join('')}
         <path class="ach-area" d="${smooth}L${px(weeks.length - 1).toFixed(1)} ${Hh - PB}L${PL} ${Hh - PB}Z"/>
         <path class="ach-line" d="${smooth}" pathLength="1"/>
@@ -221,17 +221,18 @@
     const ach = pan.querySelector('.ach');
     if (ach) {
       const sv = ach.querySelector('svg'), pts = JSON.parse(sv.dataset.pts), cur = sv.querySelector('.ach-cur'), dot = sv.querySelector('.ach-dot'), tp = ach.querySelector('.ach-tip');
-      ach.addEventListener('mousemove', e => {
+      const move = e => {
         const vb = sv.viewBox.baseVal, b = sv.getBoundingClientRect(), x = (e.clientX - b.left) / b.width * vb.width; let best = 0; pts.forEach((p, i) => { if (Math.abs(p[0] - x) < Math.abs(pts[best][0] - x)) best = i; });
         const p = pts[best]; cur.removeAttribute('hidden'); dot.removeAttribute('hidden'); cur.setAttribute('x1', p[0]); cur.setAttribute('x2', p[0]); dot.setAttribute('cx', p[0]); dot.setAttribute('cy', p[1]);
         tp.innerHTML = `<b>${fmt.esc(p[3])}</b><span>settimana del ${fmt.esc(p[2])}</span><small>${p[4]} ${p[4] === 1 ? 'ordine' : 'ordini'} · ${p[5]} DDT</small>`; tp.hidden = false;
         const lx = p[0] / vb.width * b.width, ly = p[1] / vb.height * b.height; tp.style.left = `${Math.min(b.width - tp.offsetWidth, Math.max(0, lx - tp.offsetWidth / 2))}px`; tp.style.top = `${Math.max(0, ly - tp.offsetHeight - 14)}px`;
-      });
-      ach.addEventListener('mouseleave', () => { cur.setAttribute('hidden', ''); dot.setAttribute('hidden', ''); tp.hidden = true; });
+      };
+      ach.addEventListener('pointermove', move); ach.addEventListener('pointerdown', move);
+      ach.addEventListener('pointerleave', () => { cur.setAttribute('hidden', ''); dot.setAttribute('hidden', ''); tp.hidden = true; });
     }
     // schermi stretti: le etichette che escono dal bordo destro passano a sinistra del punto
     const svg = box.querySelector('.itmap');
-    if (svg && svg.clientWidth < 560) {
+    if (svg && svg.clientWidth < 520) {
       const vb = svg.viewBox.baseVal, right = vb.x + vb.width;
       svg.querySelectorAll('.m-lbl').forEach(t => { try { const bb = t.getBBox(); if (bb.x + bb.width > right - 2) { t.setAttribute('text-anchor', 'end'); t.setAttribute('x', (+t.dataset.px - 6 * vb.width / 700).toFixed(1)); } } catch { } });
     }
