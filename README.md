@@ -13,7 +13,8 @@ Si possono caricare più PDF insieme, o uno zip: il sito riconosce da solo se og
 
 | File | Cosa contiene |
 |---|---|
-| `index.html`, `style.css` | la pagina (grafica ripresa da Centro di Costo) |
+| `index.html`, `style.css`, `theme.css` | la pagina; `theme.css` è il tema «vetro» ripreso dal pacchetto Glassy Dashboard 42 (foto `bg.jpg`, font Inter) |
+| `pan.js` | la Panoramica: intestazione, numeri chiave, mappa d'Italia, grafici, attività |
 | `app.js` | ordini, DDT, collegamenti, controlli, tracciamento, salvataggio |
 | `parser.js` | lettura dei PDF Fischer (conferma d'ordine e DDT) |
 | `lib-pdfjs*.js` | pdf.js di Mozilla, la libreria che estrae il testo dai PDF |

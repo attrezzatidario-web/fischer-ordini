@@ -306,19 +306,38 @@
   }
 
   /* ---------- disegno ---------- */
+  // titolo grande della pagina, parola per parola (come l'intestazione della panoramica)
+  const words = t => esc(t).split(' ').map((w, i) => `<span class="word" style="--i:${i}">${w}</span>`).join(' ');
+  function pageHead(doc) {
+    if (doc) {
+      const o = doc.tipo === 'ordine';
+      return `<section class="phead"><p class="eyebrow">${o ? `Conferma d'ordine del ${esc(dt(doc.data))}` : `Documento di trasporto del ${esc(dt(doc.data))}`}</p><h1>${words(`${o ? 'Ordine' : 'DDT'} ${doc.num}`)}</h1><p class="psub">${esc(o ? pzName(doc) : pzOfD(doc))}${o ? ' · ' + esc(stLabel(doc)) : ordOf(doc) ? ' · ordine ' + esc(doc.ord) : ''}</p></section>`;
+    }
+    if (V.tab === 'ord') { const O = orders(), a = O.filter(open).length; return `<section class="phead"><p class="eyebrow">Conferme d'ordine Fischer</p><h1>${words('Ordini')}</h1><p class="psub">${num(O.length)} in totale · ${num(a)} ${a === 1 ? 'aperto' : 'aperti'}</p></section>`; }
+    if (V.tab === 'ddt') { const D = ddts(), v = D.filter(d => tkIdx(d) < 4).length; return `<section class="phead"><p class="eyebrow">Documenti di trasporto</p><h1>${words('DDT e spedizioni')}</h1><p class="psub">${num(D.length)} DDT · ${num(v)} in viaggio</p></section>`; }
+    return '';
+  }
+  function navSync(anim) {
+    const doc = V.open && DOCS.get(V.open), cur = doc ? (doc.tipo === 'ordine' ? 'ord' : 'ddt') : V.tab;
+    document.querySelectorAll('.nav-tab').forEach(b => b.classList.toggle('on', b.dataset.tab === cur));
+    const b = document.querySelector('.nav-tab.on'), bub = document.querySelector('.nav-bubble');
+    if (b && bub) { if (!anim) bub.style.transition = 'none'; bub.style.width = b.offsetWidth + 'px'; bub.style.height = b.offsetHeight + 'px'; bub.style.transform = `translate(${b.offsetLeft}px, ${b.offsetTop}px)`; if (!anim) { bub.offsetWidth; bub.style.transition = ''; } bub.classList.add('in'); }
+  }
   function render() {
     const m = mode(), mb = $('#mode');
-    mb.className = 'mode' + (m === 'google' ? ' on' : m === 'prova' ? ' prova' : ''); mb.querySelector('span').textContent = m === 'google' ? 'Google Foglio' : m === 'prova' ? 'Prova (solo questo browser)' : 'Non collegato';
+    mb.className = 'mode tool' + (m === 'google' ? ' on' : m === 'prova' ? ' prova' : ''); mb.querySelector('span').textContent = m === 'google' ? 'Google Foglio' : m === 'prova' ? 'Prova' : 'Non collegato';
+    mb.title = m === 'google' ? 'Collegato al Google Foglio' : m === 'prova' ? 'Prova: i dati restano solo in questo browser' : 'Collega il Google Foglio';
     if (V.open && !DOCS.has(V.open)) V.open = '';
     const doc = V.open && DOCS.get(V.open);
     const body = doc ? (doc.tipo === 'ordine' ? orderDetail(doc) : ddtDetail(doc)) : V.tab === 'ord' ? ordersView() : V.tab === 'ddt' ? ddtView() : overview();
-    const ae = document.activeElement, keep = ae && ae.id === 'q' ? ae.selectionStart : null;
-    $('#app').innerHTML = `<div class="bar"><div class="seg">${[['pan', 'Panoramica'], ['ord', 'Ordini'], ['ddt', 'DDT']].map(([k, l]) => `<button type="button" data-tab="${k}" class="${!doc && V.tab === k ? 'on' : ''}">${l}</button>`).join('')}</div>
-      <label class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="q" type="search" placeholder="Cerca ordine, DDT, piazzale, articolo, segnacollo…" value="${esc(V.q)}" autocomplete="off"></label></div>
-      ${body}`;
-    if (!doc && V.tab === 'pan') { FPAN.after($('#app'), V.anim, { eur, num, esc }); V.anim = false; }
-    if (keep != null) { const i = $('#q'); i.focus(); try { i.setSelectionRange(keep, keep); } catch { } }
+    const q = $('#q'); if (q && document.activeElement !== q && q.value !== V.q) q.value = V.q;
+    const app = $('#app'), key = (doc ? doc.id : V.tab);
+    app.classList.toggle('settled', app.dataset.k === key); app.dataset.k = key;
+    app.innerHTML = `${pageHead(doc)}${body}`;
+    navSync(true);
+    if (!doc && V.tab === 'pan') { FPAN.after(app, V.anim, { eur, num, esc }); V.anim = false; }
   }
+  addEventListener('resize', () => navSync(false));
 
   /* ---------- avvisi ---------- */
   let tT;
@@ -444,7 +463,7 @@
       return save(out, 'Aggiornamento registrato');
     }
     if ((x = b('[data-tkref]'))) { const id = x.dataset.tkref.split(':')[1], d = DOCS.get(id); if (d && d.track) pasteLink(d.track, d); return; }
-    if (b('#paste')) return pasteDlg();
+    if (b('#paste') || b('[data-paste]')) return pasteDlg();
     if ((x = b('[data-tkdel]'))) {
       const [k, id, ev] = x.dataset.tkdel.split(':'), doc = DOCS.get(id); if (!doc || !confirm('Togliere questo aggiornamento della spedizione?')) return;
       const n = clone(doc); n.trk.ev = (n.trk.ev || []).filter(e => e.id !== ev); return save([n], 'Aggiornamento tolto');

@@ -7,21 +7,32 @@
   <meta name="referrer" content="no-referrer">
   <title>Fischer · ordini e consegne</title>
   <link rel="icon" href="favicon.png">
-  <link rel="stylesheet" href="style.css?v=5">
+  <link rel="preload" href="bg.jpg" as="image">
+  <link rel="stylesheet" href="style.css?v=6">
+  <link rel="stylesheet" href="theme.css?v=2">
 </head>
 <body>
-  <header class="top"><div class="top-in">
-    <a class="brand" href="./" aria-label="Panoramica"><img src="logo-fischer.png" alt="fischer" width="154" height="24"><span class="brand-t">Ordini e consegne<small>ai piazzali · gestione interna</small></span></a>
-    <span class="sp"></span>
-    <button type="button" class="mode" id="mode" title="Collegamento al Google Foglio"><b></b><span>—</span></button>
-    <button type="button" class="btn" id="paste">Incolla link</button>
-    <button type="button" class="btn primary" id="up">+ Carica PDF</button>
-    <input type="file" id="file" accept="application/pdf,.pdf,application/zip,.zip" multiple hidden>
-  </div></header>
-  <main class="wrap" id="app"></main>
+  <div class="app"><div class="window">
+    <header class="topbar">
+      <a class="brand" href="./" aria-label="Panoramica"><span class="brand-logo"><img src="logo-fischer.png" alt="fischer" width="154" height="24"></span><span class="brand-t">Ordini e consegne<small>ai piazzali · gestione interna</small></span></a>
+      <nav class="nav" aria-label="Sezioni"><span class="nav-bubble" aria-hidden="true"></span>
+        <button type="button" class="nav-tab on" data-tab="pan" style="--i:0">Panoramica</button>
+        <button type="button" class="nav-tab" data-tab="ord" style="--i:1">Ordini</button>
+        <button type="button" class="nav-tab" data-tab="ddt" style="--i:2">DDT</button>
+      </nav>
+      <div class="tools">
+        <label class="gsearch"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="q" type="search" placeholder="Cerca ordine, DDT, piazzale…" autocomplete="off"></label>
+        <button type="button" class="tool" id="paste" title="Incolla un link di tracciamento"><svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1"/><path d="M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1"/></svg></button>
+        <button type="button" class="mode tool" id="mode" title="Collegamento al Google Foglio"><b></b><span>—</span></button>
+        <button type="button" class="btn primary" id="up"><svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M5 20h14"/></svg><span>Carica PDF</span></button>
+        <input type="file" id="file" accept="application/pdf,.pdf,application/zip,.zip" multiple hidden>
+      </div>
+    </header>
+    <main class="main" id="app"></main>
+  </div></div>
   <script src="lib-pdfjs.js"></script>
   <script src="parser.js?v=2"></script>
-  <script src="pan.js?v=2"></script>
-  <script src="app.js?v=4"></script>
+  <script src="pan.js?v=3"></script>
+  <script src="app.js?v=5"></script>
 </body>
 </html>

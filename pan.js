@@ -49,10 +49,19 @@
     D.forEach(d => H.checksD(d).filter(c => c.t === 'warn').forEach(c => todo.push({ id: d.id, h: `DDT ${d.num} · ${H.pzOfD(d)}`, c })));
 
     const frase = [act.length ? `<b>${num(act.length)}</b> ${act.length === 1 ? 'ordine aperto' : 'ordini aperti'}` : 'nessun ordine aperto', viaggio.length ? `<b>${num(viaggio.length)}</b> ${viaggio.length === 1 ? 'spedizione' : 'spedizioni'} in viaggio` : '', lt.length ? `<b class="t-bad">${num(lt.length)}</b> in ritardo` : '', todo.length ? `<b class="t-warn">${num(todo.length)}</b> da controllare` : 'tutto in ordine'].filter(Boolean);
-    const hero = `<section class="hero rv">
-      <div class="hero-t"><small>${esc(dataLunga.charAt(0).toUpperCase() + dataLunga.slice(1))}</small><h1>${saluto}</h1><p>${frase.join(' · ')}.</p></div>
-      <div class="hero-s"><div><small>Valore ordini aperti</small><b data-count="${impAperto}" data-fmt="eur">${eur(impAperto)}</b></div><div><small>Pezzi in arrivo</small><b data-count="${pzArrivo}">${num(pzArrivo)}</b></div><div><small>Puntualità consegne</small><b>${punt == null ? '—' : `<span data-count="${punt}">${punt}</span>%`}</b></div></div></section>`;
-
+    const cents = v => { const t = eur(v).replace(/\s*€$/, ''), k = t.lastIndexOf(','); return k < 0 ? esc(t) : `${esc(t.slice(0, k))}<span class="cents">${esc(t.slice(k))}</span>`; };
+    const words = t => t.split(' ').map((w, i) => `<span class="word" style="--i:${i}">${esc(w)}</span>`).join(' ');
+    const glance = (ic, n, l, s) => `<div class="gl-i"><span class="gl-ic">${ico(ic)}</span><span><b>${n}</b><small>${l}</small></span>${s ? `<em>${s}</em>` : ''}</div>`;
+    const hero = `<section class="hero">
+      <div class="hero-copy"><p class="hero-eyebrow">${esc(dataLunga.charAt(0).toUpperCase() + dataLunga.slice(1))} · ecco la situazione degli ordini Fischer</p>
+        <h1>${words(saluto + '!')}</h1>
+        <div class="hero-actions"><button type="button" class="btn xl white" data-up>${'<svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M5 20h14"/></svg>'}Carica PDF</button><button type="button" class="btn xl white" data-paste>${ico('link')}Incolla link</button>
+          <div class="glance">${glance('box', num(act.length), act.length === 1 ? 'ordine aperto' : 'ordini aperti')}${glance('truck', num(viaggio.length), 'in viaggio', lt.length ? `${num(lt.length)} in ritardo` : '')}${glance('clock', num(todo.length), 'da controllare')}</div></div></div>
+      <div class="stack"><span class="stack-layer l3"></span><span class="stack-layer l2"></span><div class="stack-card">
+        <div class="stack-top"><span class="dot"></span><span>Ordini aperti · ${now.getFullYear()}</span><b>FISCHER</b></div>
+        <div class="stack-val">${cents(impAperto)}<span class="cur"> €</span></div>
+        <div class="stack-pill">${ico('box')}${num(pzArrivo)} pezzi in arrivo</div>
+        <p class="stack-sub">${num(act.length)} ${act.length === 1 ? 'ordine aperto' : 'ordini aperti'} · puntualità ${punt == null ? '—' : punt + '%'}</p></div></div></section>`;
     const kpi = (cls, ic, l, n, s, go, pct) => `<button type="button" class="kp ${cls} rv" data-go="${go}"><span class="kp-i">${ico(ic)}</span><small>${l}</small><b data-count="${n}">${num(n)}</b><span class="kp-s">${s}</span>${pct != null ? `<i class="kp-bar"><i style="--w:${Math.max(0, Math.min(100, pct))}%"></i></i>` : ''}</button>`;
     const inCons = act.filter(o => o.stato === 'spedito');
     const kpis = `<div class="kps">
