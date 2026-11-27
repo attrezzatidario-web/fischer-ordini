@@ -53,7 +53,7 @@
     const i0 = left.findIndex(l => /^Destinazione merce/i.test(l.t)), D = [];
     if (i0 >= 0) for (let k = i0 + 1; k < left.length && !/^Contatto/i.test(left[k].t); k++) D.push(left[k].t);
     if (!D.length) throw new Error('destinazione della merce non trovata');
-    const last = D[D.length - 1], cm = /^(\d{5})\s+(.+?)\s+([A-Z]{2})$/.exec(last);
+    const last = D[D.length - 1], cm = /^(\d{5,6})\s+(.+?)\s+([A-Z]{2})$/.exec(last);
     if (cm) { o.dest.cap = cm[1]; o.dest.citta = title(cm[2]); o.dest.prov = cm[3]; D.pop(); }
     o.dest.rs = title(D[0] || '');
     const mg = D.slice(1).find(t => /^\(?\s*(magazzino|mag\.?)\s+/i.test(t));
@@ -111,7 +111,7 @@
     // destinatario: colonna di destra sotto «Destinatario Merce», fino ad «Agente»
     const i0 = right.findIndex(l => /Destinatario Merce/i.test(l.t)), D = [];
     if (i0 >= 0) for (let k = i0 + 1; k < right.length && !/^(Agente|No\.|Corriere|Magazzino\s+fiit)/i.test(right[k].t); k++) if (!/^Spett\.?\s*le$/i.test(right[k].t)) D.push(right[k].t);
-    const last = D[D.length - 1], cm = last && /^(\d{5})\s+(.+?)\s+([A-Z]{2})$/.exec(last);
+    const last = D[D.length - 1], cm = last && /^(\d{5,6})\s+(.+?)\s+([A-Z]{2})$/.exec(last);
     if (cm) { d.dest.cap = cm[1]; d.dest.citta = title(cm[2]); d.dest.prov = cm[3]; D.pop(); }
     d.dest.rs = title(D[0] || '');
     const mg = D.slice(1).find(t => /^\(?\s*(magazzino|mag\.?)\s+/i.test(t));

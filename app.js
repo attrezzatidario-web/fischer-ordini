@@ -44,6 +44,11 @@
       if (mode() === 'google') return post('delete', { id });
       LS.set('fo_docs', LS.get('fo_docs', []).filter(d => d.id !== id));
     },
+    async track(url) {
+      if (mode() !== 'google') throw new Error('la lettura automatica funziona con il Google Foglio collegato');
+      return (await post('track', { url })).info;
+    },
+    async refresh() { if (mode() === 'google') await post('aggiorna'); },
     async pdf(name, u8) {
       if (mode() !== 'google') return '';
       let s = ''; for (let i = 0; i < u8.length; i += 32768) s += String.fromCharCode.apply(null, u8.subarray(i, i + 32768));
@@ -54,7 +59,7 @@
   function cols(d) {
     if (d.tipo === 'ordine') {
       const L = ddtsOf(d), sh = shipped(d);
-      return { 'Ordine': d.num, 'Data': d.data, 'Piazzale': pzName(d), 'Destinatario': d.dest.rs, 'Città': [d.dest.citta, d.dest.prov].filter(Boolean).join(' '), 'Stato': stLabel(d), 'Articoli': d.righe.map(x => `${x.cod} ${x.desc} × ${x.q}`).join(' | '), 'Pezzi ordinati': d.righe.reduce((s, x) => s + x.q, 0), 'Pezzi spediti': [...sh.values()].reduce((s, q) => s + q, 0), 'Consegna prevista': nextDel(d), 'Imponibile': d.imponibile, 'Totale': d.totale, 'DDT': L.map(x => x.num).join(', '), 'Tracciamento': trkOf(d), 'PDF': d.pdf || '' };
+      return { 'Ordine': d.num, 'Data': d.data, 'Piazzale': pzName(d), 'Destinatario': d.dest.rs, 'Città': [d.dest.citta, d.dest.prov].filter(Boolean).join(' '), 'Stato': stLabel(d), 'Articoli': d.righe.map(x => `${x.cod} ${x.desc} × ${x.q}`).join(' | '), 'Pezzi ordinati': d.righe.reduce((s, x) => s + x.q, 0), 'Pezzi spediti': [...sh.values()].reduce((s, q) => s + q, 0), 'Consegna prevista': nextDel(d), 'Imponibile': d.imponibile, 'Totale': d.totale, 'DDT': L.map(x => x.num).join(', '), 'Tracciamento': trkOf(d), 'Stato spedizione': [d, ...L].map(tkLabel).filter(Boolean).pop() || '', 'Consegna prevista corriere': etaOf(d), 'PDF': d.pdf || '' };
     }
     return { 'DDT': d.num, 'Data': d.data, 'Ordine': d.ord || '', 'Piazzale': ordOf(d) ? pzName(ordOf(d)) : d.pz, 'Destinatario': d.dest.rs, 'Corriere': carrier(d.corriere), 'Colli': d.colli || '', 'Segnacollo': (d.colliN || []).join(', '), 'Articoli': d.righe.map(x => `${x.cod} ${x.desc} × ${x.q}`).join(' | '), 'Pezzi': d.righe.reduce((s, x) => s + x.q, 0), 'Tracciamento': d.track || '', 'Stato spedizione': tkLabel(d), 'Ultimo aggiornamento': tkLast(d) ? `${tkLast(d).d} ${tkLast(d).luogo || ''}`.trim() : '', 'Consegna prevista corriere': (d.trk && d.trk.eta) || '', 'PDF': d.pdf || '' };
   }
@@ -112,6 +117,7 @@
       if (String(d.pz || '').toUpperCase() !== String(o.pz || '').toUpperCase() && d.pz && o.pz) A.push({ t: 'warn', h: 'Destinazione diversa dall\'ordine', d: `Il DDT va a «${d.pz}», la conferma d'ordine a «${o.pz}».` });
     }
     if (d.colli && d.colliN && d.colliN.length && d.colliN.length !== d.colli) A.push({ t: 'warn', h: 'Segnacolli e colli non coincidono', d: `${plur(d.colli, 'collo dichiarato', 'colli dichiarati')}, ${plur(d.colliN.length, 'segnacollo', 'segnacolli')} sul documento.` });
+    if (d.trk && d.trk.auto && d.trk.auto.ref && d.consegna && d.trk.auto.ref !== d.consegna) A.push({ t: 'warn', h: 'Il link è di un\'altra consegna', d: `Il link di tracciamento riguarda la consegna Fischer ${d.trk.auto.ref}, questo DDT è la consegna ${d.consegna}.` });
     if (tkProb(d)) A.push({ t: 'warn', h: 'Problema sulla spedizione', d: `${dt(tkProb(d).d)}${tkProb(d).luogo ? ' · ' + tkProb(d).luogo : ''}${tkProb(d).n ? ' · ' + tkProb(d).n : ''}` });
     if (!d.track && tkIdx(d) < 4) A.push({ t: 'info', h: 'Link di tracciamento da inserire', d: 'Incolla il link del corriere (es. Shippeo) nel campo Tracciamento.' });
     return A;
@@ -141,25 +147,27 @@
     return `<ol class="steps${pb ? ' bad' : ''}">${TS.map((t, k) => { const d = stepDate(x, k); return `<li class="${k < i ? 'done' : k === i ? 'cur' : ''}"><i>${k < i || (k === i && k === 4) ? '✓' : k + 1}</i><b>${t[1]}</b><small>${d ? dt(d) : k === 4 && x.trk && x.trk.eta ? 'prevista ' + dt(x.trk.eta) : '&nbsp;'}</small></li>`; }).join('')}</ol>`;
   }
   function trkPanel(k, x, opts = {}) {
-    const i = tkIdx(x), last = tkLast(x), pb = tkProb(x), eta = x.trk && x.trk.eta, plat = platOf(x.track), carr = x.tipo === 'ddt' ? carrier(x.corriere) : '';
+    const i = tkIdx(x), last = tkLast(x), pb = tkProb(x), eta = x.trk && x.trk.eta, au = x.trk && x.trk.auto, plat = platOf(x.track), carr = (au && au.carr) || (x.tipo === 'ddt' ? carrier(x.corriere) : '');
+    const agg = au && au.agg ? new Date(au.agg) : null, aggTxt = agg ? `${dt(agg.toISOString().slice(0, 10)) === dt(today()) ? 'oggi' : agg.toLocaleDateString('it-IT')} alle ${agg.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}` : '';
     const E = tkEv(x).slice().reverse();
-    const head = `<div class="tkh"><div class="tkc"><div class="tkb">${plat ? `<span class="carr">${esc(plat)}</span>` : ''}${carr && carr !== plat ? `<span class="carr alt">${esc(carr)}</span>` : ''}${x.tipo === 'ddt' ? `<span class="muted small">DDT ${esc(x.num)}${x.consegna ? ' · consegna Fischer ' + esc(x.consegna) : ''}</span>` : ''}</div>
+    const head = `<div class="tkh"><div class="tkc"><div class="tkb">${plat ? `<span class="carr">${esc(plat)}</span>` : ''}${carr && carr !== plat ? `<span class="carr alt">${esc(carr)}</span>` : ''}${x.tipo === 'ddt' ? `<span class="muted small">DDT ${esc(x.num)}${x.consegna ? ' · consegna Fischer ' + esc(x.consegna) : ''}</span>` : au && au.ref ? `<span class="muted small">consegna Fischer ${esc(au.ref)}</span>` : ''}${au ? '<span class="auto">● aggiornato in automatico</span>' : ''}</div>
         <b class="tks${pb ? ' bad' : i === 4 ? ' ok' : ''}">${pb ? 'Problema segnalato' : i < 0 ? (x.track ? 'In attesa del primo aggiornamento' : 'Nessun tracciamento') : esc(TS[i][2])}</b>
-        <small class="muted">${last ? `Ultimo aggiornamento ${esc(dt(last.d))}${last.luogo ? ' · ' + esc(last.luogo) : ''}` : x.track ? 'Apri il tracciamento e registra lo stato che vedi' : 'Incolla il link del corriere per seguire la spedizione'}</small></div>
-      <div class="tkr">${eta ? `<div class="eta"><small>Consegna prevista</small><b>${esc(dt(eta))}</b></div>` : ''}${x.track ? `<a class="btn primary" href="${esc(x.track)}" target="_blank" rel="noopener noreferrer">Apri tracciamento ↗</a>` : ''}</div></div>`;
+        <small class="muted">${last ? `Ultimo movimento ${esc(dt(last.d))}${last.h ? ' ore ' + esc(last.h) : ''}${last.luogo ? ' · ' + esc(last.luogo) : ''}` : x.track ? 'Nessun movimento ancora registrato dal corriere' : 'Incolla il link del corriere: stato e fasi si aggiornano da soli'}${aggTxt ? ` · controllato ${esc(aggTxt)}` : ''}</small></div>
+      <div class="tkr">${eta && i < 4 ? `<div class="eta"><small>Consegna ${x.trk.etaTipo === 'stimata' ? 'stimata' : 'prevista'}${eta < today() ? ' · superata' : ''}</small><b class="${eta < today() ? 'late' : ''}">${esc(dt(eta))}</b></div>` : ''}${au && !opts.compact ? `<button type="button" class="btn" data-tkref="${k}:${esc(x.id)}">Aggiorna ora</button>` : ''}${x.track ? `<a class="btn primary" href="${esc(x.track)}" target="_blank" rel="noopener noreferrer">Apri tracciamento ↗</a>` : ''}</div></div>`;
     if (opts.compact) return `<div class="tkp compact">${head}${stepper(x)}</div>`;
     const id = `${k}:${esc(x.id)}`;
     return `<div class="tkp">${head}${stepper(x)}
       ${pb ? `<div class="ck warn" style="margin-top:12px"><i>!</i><div><b>Problema segnalato il ${esc(dt(pb.d))}</b><span>${esc([pb.luogo, pb.n].filter(Boolean).join(' · ') || 'nessun dettaglio')}</span></div></div>` : ''}
+      <label class="fld lk"><small>Link di tracciamento</small><input type="url" data-trk="${id}" value="${esc(x.track || '')}" placeholder="Incolla qui il link del corriere (es. Shippeo): il resto si aggiorna da solo" autocomplete="off"></label>
+      ${E.length ? `<div class="tkev">${E.map(e => `<div class="${e.st === 'problema' ? 'bad' : ''}"><i></i><span><b>${esc(e.st === 'nota' ? 'Nota' : e.st === 'problema' ? 'Problema / giacenza' : (TS.find(t => t[0] === e.st) || ['', e.st])[1])}${e.luogo ? ' · ' + esc(e.luogo) : ''}</b><small>${esc(dt(e.d))}${e.h ? ' · ore ' + esc(e.h) : ''}${e.n ? ' · ' + esc(e.n) : ''} · ${e.src === 'auto' ? esc((au && au.fonte) || 'corriere') : 'inserito a mano'}</small></span>${e.src === 'auto' ? '' : `<button type="button" class="x" data-tkdel="${id}:${esc(e.id)}" title="Togli questo aggiornamento">×</button>`}</div>`).join('')}</div>` : ''}
+      <details class="tkman"><summary>Aggiungi un aggiornamento a mano (corrieri senza lettura automatica, note, giacenze)</summary>
       <div class="tku" data-tku="${id}">
-        <label class="fld lk"><small>Link di tracciamento</small><input type="url" data-trk="${id}" value="${esc(x.track || '')}" placeholder="Incolla qui il link del corriere (es. Shippeo)" autocomplete="off"></label>
         <label class="fld"><small>Stato</small><select name="st">${TS.map((t, n) => `<option value="${t[0]}"${n === Math.min(4, Math.max(0, i + 1)) ? ' selected' : ''}>${t[1]}</option>`).join('')}<option value="problema">Problema / giacenza</option><option value="nota">Solo nota</option></select></label>
         <label class="fld"><small>Data</small><input type="date" name="d" value="${today()}"></label>
         <label class="fld"><small>Dove / dettaglio</small><input type="text" name="luogo" placeholder="es. Hub Teramo" autocomplete="off"></label>
         <label class="fld"><small>Consegna prevista</small><input type="date" name="eta" value="${esc(eta || '')}"></label>
         <button type="button" class="btn primary" data-tkadd="${id}">Registra aggiornamento</button>
-      </div>
-      ${E.length ? `<div class="tkev">${E.map(e => `<div class="${e.st === 'problema' ? 'bad' : ''}"><i></i><span><b>${esc(e.st === 'nota' ? 'Nota' : e.st === 'problema' ? 'Problema / giacenza' : (TS.find(t => t[0] === e.st) || ['', e.st])[1])}${e.luogo ? ' · ' + esc(e.luogo) : ''}</b><small>${esc(dt(e.d))}${e.n ? ' · ' + esc(e.n) : ''}</small></span><button type="button" class="x" data-tkdel="${id}:${esc(e.id)}" title="Togli questo aggiornamento">×</button></div>`).join('')}</div>` : ''}
+      </div></details>
     </div>`;
   }
   const trkField = (k, x) => `<div class="trk">${x.track ? `<a class="btn sm primary" href="${esc(x.track)}" target="_blank" rel="noopener noreferrer">Segui la spedizione ↗</a>` : '<small class="muted">Link di tracciamento non inserito</small>'}<input type="url" data-trk="${k}:${esc(x.id)}" value="${esc(x.track || '')}" placeholder="Incolla qui il link di tracciamento (es. Shippeo)" autocomplete="off" aria-label="Link di tracciamento"></div>`;
@@ -272,6 +280,58 @@
   }
   const PZ_LIST = { RM: 'San Cesareo', TO: 'Torino', VE: 'Venezia', VR: 'Verona', MI: 'Gorgonzola', RA: 'Ravenna', RN: 'Rimini', BO: 'Bologna', PI: 'Pisa', TE: 'Corropoli', PE: 'Pescara' };
 
+  /* ---------- tracciamento automatico ---------- */
+  // unisce la lettura del corriere con gli aggiornamenti a mano e aggiorna l'ordine; restituisce i documenti da salvare
+  function applyInfo(x, info, url) {
+    const n = clone(x); n.track = url;
+    const old = (n.trk && n.trk.ev) || [], prev = new Set(old.filter(e => e.src === 'auto').map(e => e.id));
+    n.trk = { ...(n.trk || {}), ev: [...old.filter(e => e.src !== 'auto'), ...info.ev] };
+    if (info.eta) { n.trk.eta = info.eta; n.trk.etaTipo = info.etaTipo; }
+    n.trk.auto = { fonte: info.fonte, ref: info.ref, carr: info.carr, dest: info.dest, stato: info.stato, agg: info.agg };
+    const nuovi = info.ev.filter(e => !prev.has(e.id)), out = [n];
+    const o0 = n.tipo === 'ordine' ? n : ordOf(n), o = o0 && o0 !== n ? clone(o0) : o0;
+    if (o) {
+      o.mov = [...(o.mov || []), ...nuovi.map(e => ({ d: e.d, st: '', n: `Spedizione: ${(TS.find(t => t[0] === e.st) || ['', e.st === 'problema' ? 'Problema / giacenza' : e.st])[1]}${e.luogo ? ' · ' + e.luogo : ''}${n.tipo === 'ddt' ? ' (DDT ' + n.num + ')' : ''} · da ${info.fonte}` }))];
+      const f = tkIdx(n);
+      if (f >= 0 && f < 4 && o.stato === 'confermato') { o.stato = 'spedito'; o.mov.push({ d: today(), st: 'spedito', n: 'Merce in consegna' }); }
+      if (f === 4 && open(o)) {
+        const all = n.tipo === 'ddt' ? ddtsOf(o).map(z => z.id === n.id ? n : z) : [];
+        if (n === o || (shipSt(o) === 'tutto' && all.every(z => tkIdx(z) === 4))) { o.stato = 'consegnato'; o.mov.push({ d: today(), st: 'consegnato', n: 'Merce consegnata al piazzale' }); }
+      }
+      if (o !== n) out.push(o);
+    }
+    return out;
+  }
+  const cityKey = s => String(s || '').toLowerCase().replace(/\s*\([a-z]{2}\)\s*$/, '').trim();
+  // a chi appartiene il link: DDT con lo stesso numero di consegna Fischer, altrimenti ordine aperto dello stesso piazzale
+  function ownerOf(info, pref) {
+    const D = ddts().find(d => info.ref && d.consegna === info.ref); if (D) return D;
+    const c = cityKey(info.dest && info.dest.citta), same = x => c && [x.pz, x.pzMan, x.dest && x.dest.citta, x.dest && x.dest.mag].some(v => cityKey(v) === c);
+    if (pref && (pref.tipo === 'ordine' || !pref.consegna || pref.consegna === info.ref) && (!c || same(pref) || pref.tipo === 'ordine')) return pref;
+    const O = orders().filter(o => open(o) && same(o));
+    return O.find(o => !trkOf(o)) || O[0] || (pref && pref.tipo === 'ordine' ? pref : null);
+  }
+  async function pasteLink(url, pref) {
+    if (!okUrl(url)) return toast('Il link deve iniziare con https://');
+    let info = null;
+    try { busy('Leggo la spedizione dal corriere…'); info = await Store.track(url); }
+    catch (e) { busy(); if (pref) { const n = clone(pref); n.track = url; await save([n], 'Link salvato. Lettura automatica non riuscita: ' + e.message); } else toast('Lettura non riuscita: ' + e.message); return; }
+    finally { busy(); }
+    const ow = ownerOf(info, pref);
+    if (!ow) return toast(`Il link è della consegna ${info.ref || '—'} per ${info.dest.citta || info.dest.nome || '—'}: nessun DDT od ordine aperto corrispondente. Carica prima la conferma d'ordine o il DDT.`);
+    const out = applyInfo(DOCS.get(ow.id), info, url);
+    // il link non resta su un altro documento
+    [...DOCS.values()].filter(x => x.id !== ow.id && x.track === url && !out.some(y => y.id === x.id)).forEach(x => { const y = clone(x); y.track = ''; delete y.trk; out.push(y); });
+    if (pref && pref.id !== ow.id && pref.track === url && !out.some(y => y.id === pref.id)) { const y = clone(pref); y.track = ''; delete y.trk; out.push(y); }
+    V.open = ow.id;
+    await save(out, `${ow.tipo === 'ddt' ? 'DDT ' + ow.num : 'Ordine ' + ow.num} · ${ow.tipo === 'ddt' ? pzOfD(ow) : pzName(ow)}: ${tkLabel(out[0])}${pref && pref.id !== ow.id ? ' (il link era di questa spedizione: collegato qui)' : ''}`);
+  }
+  async function refreshAll(force) {
+    if (mode() !== 'google') return;
+    try { await Store.refresh(); const docs = await Store.load(); DOCS = new Map(docs.filter(d => d && d.id && Array.isArray(d.righe)).map(d => [d.id, d])); render(); }
+    catch (e) { if (force) toast('Aggiornamento non riuscito: ' + e.message); }
+  }
+
   /* ---------- disegno ---------- */
   function render() {
     const m = mode(), mb = $('#mode');
@@ -316,6 +376,7 @@
           if (!d.pdf && mode() === 'google') { busy(`Salvo il PDF ${i} di ${docs.length} su Drive…`); try { d.pdf = await Store.pdf(`Fischer ${tipo === 'ddt' ? 'DDT' : 'ordine'} ${d.num} ${d.data}.pdf`, u8); } catch (e) { bad.push(`${f.name}: PDF non archiviato (${e.message})`); } }
           DOCS.set(d.id, d); up.push(d); last = d.id; ex ? nUpd++ : tipo === 'ddt' ? nD++ : nO++;
           // collegamenti: DDT nuovo → ordine «In consegna»; conferma nuova con DDT già caricati → «In consegna»
+          if (tipo === 'ddt' && !d.track && d.consegna) { const h = [...DOCS.values()].find(x => x.id !== d.id && x.trk && x.trk.auto && x.trk.auto.ref === d.consegna); if (h) { d.track = h.track; d.trk = clone(h.trk); if (h.tipo === 'ordine') { h.track = ''; delete h.trk; if (!up.includes(h)) up.push(h); } } }
           if (tipo === 'ddt' && !ex) { const o = ordOf(d); if (o) { const sp = o.stato === 'confermato'; if (sp) o.stato = 'spedito'; o.mov = [...(o.mov || []), { d: today(), st: sp ? 'spedito' : '', n: `DDT ${d.num} del ${dt(d.data)} caricato${d.colli ? ' · ' + plur(d.colli, 'collo', 'colli') : ''}${d.corriere ? ' · ' + carrier(d.corriere) : ''}` }]; if (!up.includes(o)) up.push(o); } }
           if (tipo === 'ordine' && !ex) { const L = ddtsOf(d); if (L.length) { d.stato = 'spedito'; d.mov.push({ d: today(), st: 'spedito', n: `Collegata ${L.length === 1 ? 'al DDT' : 'ai DDT'} ${L.map(x => x.num).join(', ')} già caricat${L.length === 1 ? 'o' : 'i'}` }); } }
           if ((tipo === 'ddt' ? checksD(d) : checksO(d)).some(c => c.t === 'warn' && c.h !== 'In ritardo')) warn++;
@@ -331,6 +392,15 @@
     if (bad.length && parts) setTimeout(() => toast('Problemi: ' + bad.slice(0, 3).join(' | ')), 4300);
   }
 
+  function pasteDlg() {
+    if (mode() !== 'google') return toast('Collega prima il Google Foglio: la lettura automatica passa dallo script');
+    const d = document.createElement('div'); d.className = 'dlg';
+    d.innerHTML = `<form><h3>Incolla il link di tracciamento</h3><p>Leggo la spedizione dal corriere e la collego da sola al DDT giusto (stesso numero di consegna Fischer) o all'ordine aperto dello stesso piazzale.</p>
+      <input type="url" name="u" placeholder="https://view.shippeo.com/…" required autocomplete="off"><div class="row"><button type="button" class="btn sm" data-x>Annulla</button><button class="btn primary">Collega</button></div></form>`;
+    document.body.appendChild(d); const f = d.querySelector('form'); f.u.focus();
+    d.addEventListener('click', e => { if (e.target.closest('[data-x]') || e.target === d) d.remove(); });
+    f.addEventListener('submit', e => { e.preventDefault(); const u = f.u.value.trim(); d.remove(); pasteLink(u, null); });
+  }
   /* ---------- collegamento al Google Foglio ---------- */
   function setup() {
     const d = document.createElement('div'); d.className = 'dlg';
@@ -357,6 +427,7 @@
     catch (e) { toast('Dati non caricati: ' + e.message); }
     finally { busy(); }
     render();
+    refreshAll(false);
   }
 
   /* ---------- eventi ---------- */
@@ -380,7 +451,7 @@
     if ((x = b('[data-note]'))) { const i = $('#note'), v = i && i.value.trim(), o = DOCS.get(x.dataset.note); if (!o || !v) return; const n = clone(o); n.mov = [...(n.mov || []), { d: today(), st: '', n: v }]; return save([n], 'Nota aggiunta'); }
     if ((x = b('[data-tkadd]'))) {
       const box = x.closest('[data-tku]'), [k, id] = x.dataset.tkadd.split(':'), doc = DOCS.get(id); if (!doc || !box) return;
-      const st = box.querySelector('[name=st]').value, d = box.querySelector('[name=d]').value || today(), luogo = box.querySelector('[name=luogo]').value.trim(), eta = box.querySelector('[name=eta]').value, lk = box.querySelector('[data-trk]').value.trim();
+      const st = box.querySelector('[name=st]').value, d = box.querySelector('[name=d]').value || today(), luogo = box.querySelector('[name=luogo]').value.trim(), eta = box.querySelector('[name=eta]').value, lk = (box.closest('.tkp').querySelector('[data-trk]') || { value: '' }).value.trim();
       if (lk && !okUrl(lk)) return toast('Il link deve iniziare con https://');
       if (st === 'nota' && !luogo) return toast('Scrivi la nota nel campo «Dove / dettaglio»');
       const n = clone(doc); n.track = lk || n.track || ''; n.trk = n.trk || { ev: [] }; n.trk.ev = n.trk.ev || []; n.trk.eta = eta;
@@ -397,6 +468,8 @@
       }
       return save(out, 'Aggiornamento registrato');
     }
+    if ((x = b('[data-tkref]'))) { const id = x.dataset.tkref.split(':')[1], d = DOCS.get(id); if (d && d.track) pasteLink(d.track, d); return; }
+    if (b('#paste')) return pasteDlg();
     if ((x = b('[data-tkdel]'))) {
       const [k, id, ev] = x.dataset.tkdel.split(':'), doc = DOCS.get(id); if (!doc || !confirm('Togliere questo aggiornamento della spedizione?')) return;
       const n = clone(doc); n.trk.ev = (n.trk.ev || []).filter(e => e.id !== ev); return save([n], 'Aggiornamento tolto');
@@ -414,6 +487,7 @@
       const [k, id] = t.dataset.trk.split(':'), v = t.value.trim(), x = DOCS.get(id);
       if (v && !okUrl(v)) return toast('Il link deve iniziare con https://');
       if (!x || (x.track || '') === v) return;
+      if (v && mode() === 'google') return pasteLink(v, x);
       const n = clone(x); n.track = v; const out = [n], o = k === 'd' ? ordOf(n) : n, msg = `${v ? 'Link di tracciamento inserito' : 'Link di tracciamento tolto'}${k === 'd' ? ' · DDT ' + n.num : ''}`;
       if (o === n) n.mov = [...(n.mov || []), { d: today(), st: '', n: msg }];
       else if (o) { const m = clone(o); m.mov = [...(m.mov || []), { d: today(), st: '', n: msg }]; out.push(m); }

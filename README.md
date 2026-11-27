@@ -4,7 +4,7 @@ Sito per seguire gli acquisti di tasselli dal fornitore Fischer, con consegna ai
 
 - **Conferme d'ordine (PDF)**: vengono lette e controllate (righe, sconto, IVA, totale). Il piazzale si ricava dalla destinazione.
 - **DDT (PDF)**: vengono letti (colli, segnacollo, corriere, articoli) e si **collegano da soli** alla conferma tramite il numero d'ordine. Per ogni articolo si vede confermato, spedito e quanto resta da spedire.
-- **Spedizione**: si incolla il link del corriere (sul DDT, oppure sull'ordine se il DDT non è ancora arrivato) e si registrano gli aggiornamenti: caricato, all'hub, partito dall'hub, in consegna, consegnato, oppure un problema o una giacenza, con data, luogo e consegna prevista. Il sito mostra le fasi, la consegna prevista e lo storico. Quando tutta la merce risulta consegnata, l'ordine si chiude da solo.
+- **Tracciamento automatico**: si incolla il link Shippeo (nel campo dell'ordine o del DDT, oppure con «Incolla link»). Lo script legge dal corriere fasi, hub, date, vettore e consegna prevista. Collega il link al **DDT con lo stesso numero di consegna Fischer**, oppure all'ordine aperto dello stesso piazzale, anche se è stato incollato nel posto sbagliato. Ogni ora aggiorna da solo tutte le spedizioni in viaggio, anche a sito chiuso. L'ordine passa da solo a «In consegna» e poi a «Consegnato». Per i corrieri senza lettura automatica si possono aggiungere aggiornamenti a mano.
 - **Panoramica**: ordini aperti, in consegna, spediti in parte, in ritardo, DDT senza conferma e situazione per piazzale.
 
 Si possono caricare più PDF insieme, o uno zip: il sito riconosce da solo se ogni file è una conferma o un DDT.
@@ -29,12 +29,13 @@ I dati **non stanno su GitHub**: stanno nel tuo Google Foglio, con i PDF archivi
    - nome `CHIAVE`;
    - valore: un codice lungo inventato da te. È la password del sito: non scriverlo in chat e non metterlo su GitHub.
 4. Torna all'editor, scegli la funzione **`prepara`** e premi **Esegui**. Google chiede le autorizzazioni (Fogli e Drive): accetta. Vengono creati i fogli «Ordini» e «DDT» e la cartella «Fischer PDF».
-5. **Esegui il deployment → Nuovo deployment → tipo App web**:
+5. Scegli la funzione **`attivaAggiornamenti`** e premi **Esegui**. Accetta l'autorizzazione «connessione a servizi esterni»: serve per leggere Shippeo. Da quel momento le spedizioni si aggiornano ogni ora.
+6. **Esegui il deployment → Nuovo deployment → tipo App web**:
    - Esegui come: **Me**;
    - Chi ha accesso: **Chiunque**. Lo script risponde solo a chi conosce il codice.
 
    Premi Esegui il deployment e copia l'indirizzo che finisce con `/exec`.
-6. Apri il sito, clicca sul pallino in alto a destra e inserisci l'indirizzo e il codice. Il pallino diventa verde.
+7. Apri il sito, clicca sul pallino in alto a destra e inserisci l'indirizzo e il codice. Il pallino diventa verde.
 
 Se modifichi `Code.gs`: **Esegui il deployment → Gestisci deployment → matita → Versione: nuova versione**. L'indirizzo resta lo stesso.
 
