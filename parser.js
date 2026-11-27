@@ -35,7 +35,9 @@
     });
     return out.filter(l => l.t);
   }
-  const ROW = /^(\d{8})\s+(.+?)\s+(\d{1,3}(?:\.\d{3})*(?:,\d+)?)\s+([A-Z]{2})\s+(\d{1,3}(?:\.\d{3})*,\d{2})\s+(\d+)\s+([A-Z]{2})\s+(?:(\d{1,2},\d{2})\s+)?(\d{1,3}(?:\.\d{3})*,\d{2})\s+(\d{1,2})$/;
+  const ROW = /^(\d{8})\s+(.+?)\s+(\d{1,3}(?:\.\d{3})*(?:,\d+)?)\s+([A-Z]{2})\s+(\d{1,3}(?:\.\d{3})*,\d{2})\s+(\d+)\s+([A-Z]{2})\s+(?:(\d{1,2}(?:,\d+)?(?:\s*\/\s*\d{1,2}(?:,\d+)?)*)\s+)?(\d{1,3}(?:\.\d{3})*,\d{2})\s+(\d{1,2})$/;
+  // sconti in cascata («45,0/ 6,0» = 45% poi 6%) → sconto effettivo
+  const scontoEff = s => { if (!s) return 0; const L = s.split('/').map(x => N(x)); return Math.round((1 - L.reduce((a, p) => a * (1 - p / 100), 1)) * 1e4) / 100; };
 
   // items = testo del PDF con posizioni → ordine (senza stato e piazzale collegato)
   function parse(items) {
@@ -69,8 +71,10 @@
       if ((m = /Condizioni Pagamento\s*:?\s*(.+)$/i.exec(t))) o.pagamento = m[1].trim();
       if ((m = /Spediz\.\/Corriere\s+(.+)$/i.exec(t))) o.corriere = m[1].trim();
       if ((m = /Porto\s*\/\s*Resa\s+(.+)$/i.exec(t))) o.porto = m[1].trim();
-      if ((m = ROW.exec(t))) { r = { cod: m[1], desc: m[2].trim().replace(/(\d)(con\b)/gi, '$1 $2').replace(/\.$/, ''), ean: '', q: N(m[3]), um: m[4], prezzo: N(m[5]), per: N(m[6]), umPrezzo: m[7], sconto: m[8] ? N(m[8]) : 0, importo: N(m[9]), iva: Number(m[10]), consegna: '' }; o.righe.push(r); return; }
+      if ((m = ROW.exec(t))) { r = { cod: m[1], desc: m[2].trim().replace(/(\d)(con\b)/gi, '$1 $2').replace(/\.$/, ''), ean: '', q: N(m[3]), um: m[4], prezzo: N(m[5]), per: N(m[6]), umPrezzo: m[7], sconto: scontoEff(m[8]), scontoTxt: m[8] ? m[8].split('/').map(x => x.trim().replace(/,0+$/, '')).join(' + ') + '%' : '', importo: N(m[9]), iva: Number(m[10]), consegna: '' }; o.righe.push(r); return; }
       if (r && /^\d{13}$/.test(t)) { r.ean = t; return; }
+      // descrizione che continua sulla riga sotto (prima del codice EAN)
+      if (r && !r.ean && !r.consegna && t.length < 60 && !/^(Data presunta|Importo|_{3,}|Sconto|IVA|Totale)/i.test(t) && !/\d{1,3}(?:\.\d{3})*,\d{2}\s+\d{1,2}$/.test(t)) { r.desc += ' ' + t.trim(); return; }
       if (r && (m = /Data presunta consegna il\s+(\d{2}\.\d{2}\.\d{4})/i.exec(t))) { r.consegna = dIso(m[1]); return; }
       if ((m = /^Importo totale EUR\s+([\d.,]+)/i.exec(t))) o.importoRighe = N(m[1]);
       else if ((m = /^Sconto di testata\(%\)\s+([\d.,]+)-?\s*%\s+([\d.,]+)/i.exec(t))) { o.scontoPct = N(m[1]); o.scontoImp = N(m[2]); }
