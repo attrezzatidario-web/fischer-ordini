@@ -57,6 +57,7 @@
       <div class="hero-copy"><p class="hero-eyebrow">${esc(dataLunga.charAt(0).toUpperCase() + dataLunga.slice(1))} · ecco la situazione degli ordini Fischer</p>
         <h1>${words(saluto + '!')}</h1>
         <div class="hero-actions"><button type="button" class="btn xl white" data-up>${'<svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M5 20h14"/></svg>'}Carica PDF</button><button type="button" class="btn xl white" data-paste>${ico('link')}Incolla link</button>
+          <span class="dz-hint"><svg viewBox="0 0 24 24"><path d="M12 15V3M7 8l5-5 5 5"/><path d="M4 14v4a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-4"/></svg>oppure trascina i PDF in un punto qualsiasi della pagina</span>
           <div class="glance">${glance('box', num(act.length), act.length === 1 ? 'ordine aperto' : 'ordini aperti')}${glance('truck', num(viaggio.length), 'in viaggio', lt.length ? `${num(lt.length)} in ritardo` : '')}${glance('clock', num(todo.length), 'da controllare')}</div></div></div>
       <div class="stack"><span class="stack-layer l3"></span><span class="stack-layer l2"></span><div class="stack-card">
         <div class="stack-top"><span class="dot"></span><span>Ordini aperti · ${now.getFullYear()}</span><b>FISCHER</b></div>

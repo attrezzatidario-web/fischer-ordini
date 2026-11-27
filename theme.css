@@ -426,3 +426,19 @@ body::after { display: none; }
 .invite { display: flex; gap: 8px; } .invite input { flex: 1; min-width: 0; font-size: 12.5px; color: var(--muted); }
 .adv summary { cursor: pointer; font-size: 12.5px; color: var(--muted); margin-bottom: 6px; }
 .dlg p b { color: var(--ink); }
+
+/* trascina e rilascia */
+.dropzone { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 18px; pointer-events: none; opacity: 0; visibility: hidden; transition: opacity .25s var(--ease), visibility 0s .25s; background: rgba(20, 16, 12, .45); backdrop-filter: blur(8px); }
+body.dragging .dropzone { opacity: 1; visibility: visible; transition: opacity .25s var(--ease); }
+.dz-in { position: relative; width: 100%; height: 100%; border-radius: 26px; border: 2.5px dashed rgba(255, 255, 255, .75); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: #fff; text-align: center; background: radial-gradient(60% 60% at 50% 50%, rgba(20, 145, 127, .35), rgba(20, 145, 127, .08)); transform: scale(.97); transition: transform .45s var(--spring); }
+body.dragging .dz-in { transform: scale(1); animation: dzBorder 1.6s linear infinite; }
+@keyframes dzBorder { 50% { border-color: rgba(63, 196, 174, .95); } }
+.dz-ic { width: 96px; height: 96px; border-radius: 50%; display: grid; place-items: center; background: var(--bubble); box-shadow: var(--bubble-shadow); border: 1px solid rgba(255, 255, 255, .6); margin-bottom: 8px; }
+body.dragging .dz-ic { animation: dzBob 1.2s var(--ease) infinite alternate; }
+@keyframes dzBob { to { transform: translateY(-10px); } }
+.dz-ic svg { width: 44px; height: 44px; fill: none; stroke: #fff; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.dz-in b { font-size: clamp(26px, 3vw, 40px); font-weight: 600; letter-spacing: -.03em; }
+.dz-n { font-size: 15px; color: rgba(255, 255, 255, .85); }
+.dz-hint { flex: 1 1 100%; display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: rgba(255, 255, 255, .72); margin: -2px 0 2px 4px; }
+.dz-hint svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+@media (hover: none) { .dz-hint { display: none; } }

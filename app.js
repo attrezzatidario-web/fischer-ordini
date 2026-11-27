@@ -192,7 +192,7 @@
 
   function overview() {
     const O = orders(), D = ddts();
-    if (!O.length && !D.length) return `<div class="card"><div class="empty" style="padding:50px 10px"><b style="font-size:16px;color:var(--ink)">Nessun documento ancora</b><br>Carica le conferme d'ordine e i DDT di Fischer in PDF (anche più file insieme, o uno zip).<br>Vengono letti, controllati e collegati tra loro in automatico.<br><br><button type="button" class="btn primary" data-up>+ Carica PDF</button></div></div>`;
+    if (!O.length && !D.length) return `<div class="card"><div class="empty" style="padding:50px 10px"><b style="font-size:16px;color:var(--ink)">Nessun documento ancora</b><br>Carica le conferme d'ordine e i DDT di Fischer in PDF, oppure trascinali in questa pagina (anche più file insieme, o uno zip).<br>Vengono letti, controllati e collegati tra loro in automatico.<br><br><button type="button" class="btn primary" data-up>+ Carica PDF</button></div></div>`;
     return FPAN.html({ orders, ddts, open, late, shipSt, shortOf, shipped, pzName, pzOfD, tkIdx, ordOf, ddtsOf, nextDel, dueOf, etaOf, checksO, checksD, stepper, PZ_LIST, esc, num, eur, dt, today });
   }
   function pzChips(names) {
@@ -505,12 +505,22 @@
   });
   let qT;
   document.addEventListener('input', e => { if (e.target.id !== 'q') return; V.q = e.target.value; if (V.tab === 'pan' && V.q) V.tab = 'ord'; V.open = ''; V.lim = 50; clearTimeout(qT); qT = setTimeout(render, 120); });
-  // trascina e rilascia i PDF
+  // trascina e rilascia i PDF: un riquadro a tutto schermo mostra dove rilasciarli
+  const dz = document.createElement('div'); dz.className = 'dropzone'; dz.setAttribute('aria-hidden', 'true');
+  dz.innerHTML = `<div class="dz-in"><div class="dz-ic"><svg viewBox="0 0 24 24"><path d="M12 15V3M7 8l5-5 5 5"/><path d="M4 14v4a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-4"/></svg></div><b>Rilascia qui i PDF</b><span class="dz-n">Conferme d'ordine e DDT Fischer, anche più file insieme o uno zip</span></div>`;
+  document.body.appendChild(dz);
   let dc = 0;
-  document.addEventListener('dragenter', e => { if ([...(e.dataTransfer && e.dataTransfer.types || [])].includes('Files')) { dc++; document.body.classList.add('dragging'); } });
-  document.addEventListener('dragleave', () => { if (--dc <= 0) { dc = 0; document.body.classList.remove('dragging'); } });
-  document.addEventListener('dragover', e => e.preventDefault());
-  document.addEventListener('drop', e => { e.preventDefault(); dc = 0; document.body.classList.remove('dragging'); const fs = [...(e.dataTransfer && e.dataTransfer.files || [])]; if (fs.length) load(fs); });
+  const hasFiles = e => [...(e.dataTransfer && e.dataTransfer.types || [])].includes('Files');
+  const dzOff = () => { dc = 0; document.body.classList.remove('dragging'); };
+  document.addEventListener('dragenter', e => {
+    if (!hasFiles(e)) return; dc++; document.body.classList.add('dragging');
+    const n = e.dataTransfer.items ? [...e.dataTransfer.items].filter(x => x.kind === 'file').length : 0;
+    dz.querySelector('.dz-n').textContent = n > 1 ? `${n} file pronti da caricare` : n === 1 ? '1 file pronto da caricare' : "Conferme d'ordine e DDT Fischer, anche più file insieme o uno zip";
+  });
+  document.addEventListener('dragleave', e => { if (!hasFiles(e)) return; if (--dc <= 0) dzOff(); });
+  document.addEventListener('dragover', e => { if (!hasFiles(e)) return; e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; });
+  document.addEventListener('drop', e => { if (!hasFiles(e)) return; e.preventDefault(); dzOff(); const fs = [...(e.dataTransfer.files || [])].filter(f => /\.(pdf|zip)$/i.test(f.name) || /pdf|zip/.test(f.type)); if (fs.length) load(fs); else toast('Si possono caricare solo PDF o zip'); });
+  addEventListener('blur', dzOff); document.addEventListener('keydown', e => { if (e.key === 'Escape') dzOff(); });
 
   window.FO = { docs: () => DOCS, checksO, checksD };
   boot();
