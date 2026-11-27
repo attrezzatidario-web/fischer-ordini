@@ -187,7 +187,7 @@
   function overview() {
     const O = orders(), D = ddts();
     if (!O.length && !D.length) return `<div class="card"><div class="empty" style="padding:50px 10px"><b style="font-size:16px;color:var(--ink)">Nessun documento ancora</b><br>Carica le conferme d'ordine e i DDT di Fischer in PDF (anche più file insieme, o uno zip).<br>Vengono letti, controllati e collegati tra loro in automatico.<br><br><button type="button" class="btn primary" data-up>+ Carica PDF</button></div></div>`;
-    return FPAN.html({ orders, ddts, open, late, shipSt, shortOf, shipped, pzName, pzOfD, tkIdx, ordOf, ddtsOf, nextDel, checksO, checksD, stepper, PZ_LIST, esc, num, eur, dt, today });
+    return FPAN.html({ orders, ddts, open, late, shipSt, shortOf, shipped, pzName, pzOfD, tkIdx, ordOf, ddtsOf, nextDel, dueOf, etaOf, checksO, checksD, stepper, PZ_LIST, esc, num, eur, dt, today });
   }
   function pzChips(names) {
     return names.length > 1 ? `<div class="chips">${[['', 'Tutti i piazzali'], ...names.sort((a, b) => a.localeCompare(b, 'it')).map(n => [n, n])].map(([k, l]) => `<button type="button" class="chip-f${V.fpz === k ? ' on' : ''}" data-fpz="${esc(k)}">${esc(l)}</button>`).join('')}</div>` : '';

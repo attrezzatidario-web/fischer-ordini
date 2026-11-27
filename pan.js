@@ -63,11 +63,13 @@
         <div class="stack-val">${cents(impAperto)}<span class="cur"> €</span></div>
         <div class="stack-pill">${ico('box')}${num(pzArrivo)} pezzi in arrivo</div>
         <p class="stack-sub">${num(act.length)} ${act.length === 1 ? 'ordine aperto' : 'ordini aperti'} · puntualità ${punt == null ? '—' : punt + '%'}</p></div></div></section>`;
-    const kpi = (cls, ic, l, n, s, go, pct) => `<button type="button" class="kp ${cls} rv" data-go="${go}"><span class="kp-i">${ico(ic)}</span><small>${l}</small><b data-count="${n}">${num(n)}</b><span class="kp-s">${s}</span>${pct != null ? `<i class="kp-bar"><i style="--w:${Math.max(0, Math.min(100, pct))}%"></i></i>` : ''}</button>`;
+    const spark = vals => { const m = Math.max(1, ...vals), pts = vals.map((v, i) => [i * 100 / (vals.length - 1), 26 - v / m * 22]); const d = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(''); return `<svg class="kp-sp" viewBox="0 0 100 28" preserveAspectRatio="none"><path class="kp-spa" d="${d}L100 28L0 28Z"/><path class="kp-spl" d="${d}" pathLength="1"/><circle cx="100" cy="${pts[pts.length - 1][1].toFixed(1)}" r="2.2"/></svg>`; };
+    const kpi = (cls, ic, l, n, s, go, pct, sp) => `<button type="button" class="kp ${cls} rv" data-go="${go}"><span class="kp-i">${ico(ic)}</span><small>${l}</small><b data-count="${n}">${num(n)}</b><span class="kp-s">${s}</span>${sp ? spark(sp) : pct != null ? `<i class="kp-bar"><i style="--w:${Math.max(0, Math.min(100, pct))}%"></i></i>` : ''}</button>`;
     const inCons = act.filter(o => o.stato === 'spedito');
+    const wkSeries = (list, field) => { const base = new Date(now); base.setHours(12, 0, 0, 0); base.setDate(base.getDate() - ((base.getDay() + 6) % 7)); const out = Array(8).fill(0); list.forEach(x => { if (!x[field]) return; const d = new Date(x[field] + 'T12:00:00'); const diff = Math.round((base - d) / 864e5); const w = 7 - Math.floor((diff + 6) / 7); if (w >= 0 && w < 8) out[w]++; }); return out; };
     const kpis = `<div class="kps">
-      ${kpi('', 'box', 'Ordini aperti', act.length, `${num(O.length)} in totale`, 'ord:aperti', O.length ? act.length / O.length * 100 : 0)}
-      ${kpi('blue', 'truck', 'In viaggio', viaggio.length, `${num(inCons.length)} ${inCons.length === 1 ? 'ordine' : 'ordini'} in consegna`, 'ddt:viaggio', act.length ? inCons.length / act.length * 100 : 0)}
+      ${kpi('', 'box', 'Ordini aperti', act.length, `${num(O.length)} in totale`, 'ord:aperti', null, wkSeries(O, 'data'))}
+      ${kpi('blue', 'truck', 'In viaggio', viaggio.length, `${num(inCons.length)} ${inCons.length === 1 ? 'ordine' : 'ordini'} in consegna`, 'ddt:viaggio', null, wkSeries(D, 'data'))}
       ${kpi(part.length ? 'warn' : 'good', 'split', 'Spediti in parte', part.length, part.length ? 'manca ancora merce' : 'nessuno', 'ord:parte')}
       ${kpi(lt.length ? 'bad' : 'good', 'clock', 'In ritardo', lt.length, lt.length ? 'oltre la data prevista' : 'tutti in tempo', 'ord:ritardo')}
       ${kpi(dx.length ? 'warn' : 'good', 'doc', 'DDT senza conferma', dx.length, dx.length ? 'carica la conferma' : 'tutti collegati', 'ddt:senza')}
@@ -126,11 +128,13 @@
     </svg>`;
     const mapStats = `<div class="mstat"><span><b>${num(goPts.length)}</b>in viaggio</span><span><b>${num(waitPts.length)}</b>in attesa</span><span><b>${num(pts.filter(q => q.p.tot).length)}</b>piazzali serviti</span></div>
       <div class="mleg2"><span><i class="go"></i>In viaggio</span><span><i class="open"></i>In attesa</span><span><i class="bad"></i>In ritardo</span><span><i class="ok"></i>Consegnato</span><span><i class="hq"></i>Fischer Padova</span></div>`;
+    const next = act.filter(o => H.dueOf(o) && H.shipSt(o) !== 'tutto').sort((a, b) => H.dueOf(a).localeCompare(H.dueOf(b)));
     const ranking = [...P.values()].filter(p => p.tot || p.last).sort((a, b) => b.a - a.a || b.pzA - a.pzA || a.n.localeCompare(b.n, 'it'));
     const maxA = Math.max(1, ...ranking.map(p => p.pzA));
     const mapCard = `<section class="card mapc rv"><div class="card-h"><h3>Italia · piazzali e spedizioni</h3><span class="muted small">aggiornata in tempo reale</span></div>
       <div class="mapw"><div class="mapbox"><div class="map3d">${mapSvg}</div>${mapStats}<div class="mtip" hidden></div><small class="mattr">Confini: ISTAT · Openpolis (CC BY 4.0)</small></div>
-      <div class="mrank-w"><div class="mrank">${ranking.length ? ranking.map(p => `<button type="button" class="mr" data-pz="${esc(p.n)}"><span class="mr-h"><b>${esc(p.n)}</b>${p.lt ? '<span class="chip late">ritardo</span>' : p.v ? '<span class="chip blue">in viaggio</span>' : p.a ? '<span class="chip soon">aperti</span>' : '<span class="chip ok">ok</span>'}</span><span class="mr-s">${num(p.a)} ${p.a === 1 ? 'ordine aperto' : 'ordini aperti'} · ${num(p.pzA)} pz in arrivo${p.last ? ' · ultimo DDT ' + esc(dt(p.last)) : ''}</span><i class="mr-bar"><i style="--w:${(p.pzA / maxA * 100).toFixed(1)}%"></i></i></button>`).join('') : '<div class="empty">I piazzali compaiono quando carichi conferme e DDT</div>'}</div></div></div></section>`;
+      <div class="mside"><div class="mside-h"><b>Piazzali</b><span>${num(ranking.length)}</span></div><div class="mrank">${ranking.length ? ranking.map(p => `<button type="button" class="mr" data-pz="${esc(p.n)}"><span class="mr-h"><b>${esc(p.n)}</b>${p.lt ? '<span class="chip late">ritardo</span>' : p.v ? '<span class="chip blue">in viaggio</span>' : p.a ? '<span class="chip soon">aperti</span>' : '<span class="chip ok">ok</span>'}</span><span class="mr-s">${num(p.a)} ${p.a === 1 ? 'ordine aperto' : 'ordini aperti'} · ${num(p.pzA)} pz in arrivo${p.last ? ' · ultimo DDT ' + esc(dt(p.last)) : ''}</span><i class="mr-bar"><i style="--w:${(p.pzA / maxA * 100).toFixed(1)}%"></i></i></button>`).join('') : '<div class="empty">I piazzali compaiono quando carichi conferme e DDT</div>'}</div>
+      <div class="mside-h"><b>Prossimi arrivi</b><span>${num(next.length)}</span></div><div class="arr">${next.length ? next.slice(0, 5).map((o, i) => { const due = H.dueOf(o), d = new Date(due + 'T12:00:00'), gg = Math.round((d - new Date(today() + 'T12:00:00')) / 864e5); return `<button type="button" class="ar" data-open="${esc(o.id)}" style="--i:${i}"><span class="ar-d${gg < 0 ? ' late' : gg <= 2 ? ' soon' : ''}"><b>${d.getDate()}</b><small>${d.toLocaleDateString('it-IT', { month: 'short' })}</small></span><span class="ar-t"><b>${esc(H.pzName(o))}</b><small>Ordine ${esc(o.num)} · ${num(H.shortOf(o, H.shipped(o)).reduce((s, x) => s + x.r, 0))} pz${H.etaOf(o) ? ' · data corriere' : ''}</small></span><span class="ar-c">${gg < 0 ? `<span class="chip late">${-gg} gg di ritardo</span>` : gg === 0 ? '<span class="chip soon">oggi</span>' : gg === 1 ? '<span class="chip soon">domani</span>' : `<span class="chip">tra ${gg} gg</span>`}</span></button>`; }).join('') : '<div class="empty small">Nessun ordine in arrivo</div>'}</div></div></div></section>`;
 
     // grafici: ordini per stato, mese per mese, puntualità
     const stN = ['confermato', 'spedito', 'consegnato', 'annullato'].map(k => [k, O.filter(o => o.stato === k).length]);
@@ -143,10 +147,39 @@
     const bars = `<div class="bars">${months.map((m, i) => `<div class="bc${i === months.length - 1 ? ' cur' : ''}" title="${m.l}: ${num(m.n)} ordini · ${eur(m.v)}"><span class="bv">${m.v ? eur(m.v).replace(/,\d\d €$/, ' €') : ''}</span><i style="--h:${(m.v / mMax * 100).toFixed(1)}%;--d:${i * .07}s"></i><small>${m.l}</small></div>`).join('')}</div>`;
     const C = 2 * Math.PI * 30, pv = punt == null ? 0 : punt;
     const donut = `<div class="dn"><svg viewBox="0 0 80 80"><circle class="dn-bg" cx="40" cy="40" r="30"/><circle class="dn-v${pv < 70 ? ' bad' : pv < 90 ? ' warn' : ''}" cx="40" cy="40" r="30" style="--c:${C.toFixed(1)};--v:${(C * (1 - pv / 100)).toFixed(1)}"/></svg><div><b>${punt == null ? '—' : `<span data-count="${punt}">${punt}</span>%`}</b><small>${punt == null ? 'nessuna consegna ancora' : `${num(inTempo)} su ${num(valut.length)} in tempo`}</small></div></div>`;
-    const charts = `<div class="g3">
+    // settimane (lunedì) per le ultime 12 settimane
+    const monday = d => { const x = new Date(d); x.setHours(12, 0, 0, 0); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; };
+    const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const wk0 = monday(now), weeks = [];
+    for (let i = 11; i >= 0; i--) { const d = new Date(wk0); d.setDate(d.getDate() - i * 7); weeks.push({ k: iso(d), d, v: 0, n: 0, s: 0 }); }
+    const wkOf = ds => { if (!ds) return null; const k = iso(monday(new Date(ds + 'T12:00:00'))); return weeks.find(w => w.k === k); };
+    O.filter(o => o.stato !== 'annullato').forEach(o => { const w = wkOf(o.data); if (w) { w.v += o.imponibile || 0; w.n++; } });
+    D.forEach(d => { const w = wkOf(d.data); if (w) w.s++; });
+    const tot12 = weeks.reduce((a, w) => a + w.v, 0), n12 = weeks.reduce((a, w) => a + w.n, 0);
+    const prevFrom = new Date(weeks[0].d); prevFrom.setDate(prevFrom.getDate() - 84);
+    const prev12 = O.filter(o => o.stato !== 'annullato' && o.data && o.data >= iso(prevFrom) && o.data < weeks[0].k).reduce((a, o) => a + (o.imponibile || 0), 0);
+    const delta = prev12 ? Math.round((tot12 - prev12) / prev12 * 100) : null;
+    const W = 1000, Hh = 200, PL = 44, PR = 10, PT = 14, PB = 26, vmax = (() => { const m = Math.max(1, ...weeks.map(w => w.v)); const e = Math.pow(10, Math.floor(Math.log10(m))); return Math.ceil(m / e / (m / e > 5 ? 2 : 1)) * e * (m / e > 5 ? 2 : 1); })();
+    const px = i => PL + i * (W - PL - PR) / (weeks.length - 1), py = v => PT + (Hh - PT - PB) * (1 - v / vmax);
+    const WP = weeks.map((w, i) => [px(i), py(w.v)]);
+    const smooth = WP.reduce((acc, p, i, a) => { if (!i) return `M${p[0].toFixed(1)} ${p[1].toFixed(1)}`; const p0 = a[i - 2] || a[i - 1], p1 = a[i - 1], p3 = a[i + 1] || p; const c1 = [p1[0] + (p[0] - p0[0]) / 6, p1[1] + (p[1] - p0[1]) / 6], c2 = [p[0] - (p3[0] - p1[0]) / 6, p[1] - (p3[1] - p1[1]) / 6]; return acc + `C${c1[0].toFixed(1)} ${Math.min(Hh - PB, c1[1]).toFixed(1)} ${c2[0].toFixed(1)} ${Math.min(Hh - PB, c2[1]).toFixed(1)} ${p[0].toFixed(1)} ${p[1].toFixed(1)}`; }, '');
+    const kfmt = v => v >= 1000 ? num(v / 1000, v % 1000 ? 1 : 0) + 'k' : num(v);
+    const trend = `<div class="ach-top"><div><b class="ach-v">${cents(tot12)} €</b><span class="ach-l">${num(n12)} ${n12 === 1 ? 'ordine' : 'ordini'} nelle ultime 12 settimane</span></div>${delta == null ? '' : `<span class="dlt ${delta >= 0 ? 'up' : 'dn'}">${delta >= 0 ? '↗' : '↘'} ${Math.abs(delta)}%<small>vs 12 sett. prima</small></span>`}</div>
+      <div class="ach"><svg viewBox="0 0 ${W} ${Hh}" class="ach-svg" data-pts='${JSON.stringify(weeks.map((w, i) => [+px(i).toFixed(1), +py(w.v).toFixed(1), w.d.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' }), eur(w.v), w.n, w.s]))}'>
+        <defs><linearGradient id="achg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#14917f" stop-opacity=".32"/><stop offset="1" stop-color="#14917f" stop-opacity="0"/></linearGradient></defs>
+        ${[0, .25, .5, .75, 1].map(f => `<line class="ach-grid" x1="${PL}" x2="${W - PR}" y1="${py(vmax * f).toFixed(1)}" y2="${py(vmax * f).toFixed(1)}"/><text class="ach-y" x="${PL - 8}" y="${(py(vmax * f) + 3.5).toFixed(1)}" text-anchor="end">${kfmt(vmax * f)}</text>`).join('')}
+        ${weeks.map((w, i) => i % 2 ? '' : `<text class="ach-x" x="${px(i).toFixed(1)}" y="${Hh - 6}" text-anchor="middle">${w.d.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}</text>`).join('')}
+        ${weeks.map((w, i) => w.s ? `<rect class="ach-ddt" x="${(px(i) - 3).toFixed(1)}" width="6" y="${(Hh - PB - Math.min(30, w.s * 8)).toFixed(1)}" height="${Math.min(30, w.s * 8)}" rx="2" style="--i:${i}"/>` : '').join('')}
+        <path class="ach-area" d="${smooth}L${px(weeks.length - 1).toFixed(1)} ${Hh - PB}L${PL} ${Hh - PB}Z"/>
+        <path class="ach-line" d="${smooth}" pathLength="1"/>
+        ${WP.map((p, i) => weeks[i].v ? `<circle class="ach-pt" cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3.2" style="--i:${i}"/>` : '').join('')}
+        <line class="ach-cur" x1="0" x2="0" y1="${PT}" y2="${Hh - PB}" hidden/><circle class="ach-dot" r="5" hidden/>
+      </svg><div class="ach-tip" hidden></div></div>
+      <div class="ach-leg"><span><i class="l"></i>Imponibile ordinato</span><span><i class="b"></i>DDT arrivati</span></div>`;
+    const charts = `<div class="g3"><div class="g3a">
       <section class="card rv"><div class="card-h"><h3>Ordini per stato</h3><span class="muted small">${num(O.length)} in totale</span></div>${stack}</section>
-      <section class="card rv"><div class="card-h"><h3>Ordinato mese per mese</h3><span class="muted small">imponibile</span></div>${bars}</section>
-      <section class="card rv"><div class="card-h"><h3>Puntualità</h3><span class="muted small">consegne entro la data Fischer</span></div>${donut}</section></div>`;
+      <section class="card rv"><div class="card-h"><h3>Puntualità</h3><span class="muted small">consegne entro la data Fischer</span></div>${donut}</section></div>
+      <section class="card rv achc"><div class="card-h"><h3>Andamento ordini</h3><span class="muted small">settimana per settimana</span></div>${trend}</section></div>`;
 
     // spedizioni in viaggio, attività, da controllare
     const trav = viaggio.slice().sort((a, b) => String((a.trk && a.trk.eta) || '9').localeCompare(String((b.trk && b.trk.eta) || '9')));
@@ -158,7 +191,7 @@
     const feedCard = `<section class="card rv"><div class="card-h"><h3>Attività recenti</h3><span class="muted small">tutti gli ordini</span></div><div class="feed">${feed.slice(0, 9).map(f => `<button type="button" class="fd" data-open="${esc(f.id)}"><span class="fd-i ${fIco(f)}">${ico(fIco(f))}</span><span><b>${esc(f.n)}</b><small>${esc(f.w)} · ${esc(dt(f.d))}</small></span></button>`).join('') || '<div class="empty">Ancora nessuna attività</div>'}</div></section>`;
     const todoCard = `<section class="card rv"><div class="card-h"><h3>Da controllare</h3><span class="muted small">${todo.length ? `${num(todo.length)} ${todo.length === 1 ? 'avviso' : 'avvisi'}` : 'tutto in ordine'}</span></div>${todo.slice(0, 8).map(t => `<button type="button" class="todo" data-open="${esc(t.id)}"><i class="${t.c.h === 'In ritardo' ? 'bad' : ''}"></i><div><b>${esc(t.h)}</b><span>${esc(t.c.h)}: ${esc(t.c.d)}</span></div></button>`).join('') || `<div class="allok">${ico('ok')}<b>Tutto in ordine</b><span>Numeri, quantità e collegamenti tornano</span></div>`}</section>`;
 
-    return `<div class="pan">${hero}${kpis}${mapCard}${charts}<div class="g2b"><div>${travCard}${feedCard}</div><div>${todoCard}</div></div></div>`;
+    return `<div class="pan">${hero}${kpis}${mapCard}${charts}<div class="g3b">${travCard}${feedCard}${todoCard}</div></div>`;
   }
 
   /* ---------- dopo il disegno: animazioni e mappa ---------- */
@@ -178,6 +211,17 @@
     // suggerimento sulla mappa
     const box = pan.querySelector('.mapbox'), tip = box && box.querySelector('.mtip');
     if (!box) return;
+    const ach = pan.querySelector('.ach');
+    if (ach) {
+      const sv = ach.querySelector('svg'), pts = JSON.parse(sv.dataset.pts), cur = sv.querySelector('.ach-cur'), dot = sv.querySelector('.ach-dot'), tp = ach.querySelector('.ach-tip');
+      ach.addEventListener('mousemove', e => {
+        const vb = sv.viewBox.baseVal, b = sv.getBoundingClientRect(), x = (e.clientX - b.left) / b.width * vb.width; let best = 0; pts.forEach((p, i) => { if (Math.abs(p[0] - x) < Math.abs(pts[best][0] - x)) best = i; });
+        const p = pts[best]; cur.removeAttribute('hidden'); dot.removeAttribute('hidden'); cur.setAttribute('x1', p[0]); cur.setAttribute('x2', p[0]); dot.setAttribute('cx', p[0]); dot.setAttribute('cy', p[1]);
+        tp.innerHTML = `<b>${fmt.esc(p[3])}</b><span>settimana del ${fmt.esc(p[2])}</span><small>${p[4]} ${p[4] === 1 ? 'ordine' : 'ordini'} · ${p[5]} DDT</small>`; tp.hidden = false;
+        const lx = p[0] / vb.width * b.width, ly = p[1] / vb.height * b.height; tp.style.left = `${Math.min(b.width - tp.offsetWidth, Math.max(0, lx - tp.offsetWidth / 2))}px`; tp.style.top = `${Math.max(0, ly - tp.offsetHeight - 14)}px`;
+      });
+      ach.addEventListener('mouseleave', () => { cur.setAttribute('hidden', ''); dot.setAttribute('hidden', ''); tp.hidden = true; });
+    }
     // schermi stretti: le etichette che escono dal bordo destro passano a sinistra del punto
     const svg = box.querySelector('.itmap');
     if (svg && svg.clientWidth < 560) {
