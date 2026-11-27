@@ -358,21 +358,56 @@
   }
 
   /* ---------- caricamento PDF ---------- */
+  // impronta del contenuto: serve a dire se un doppione è identico o diverso da quello già salvato
+  const finger = d => JSON.stringify([d.num, d.data, (d.righe || []).map(x => [x.cod, x.q, x.importo || 0]), d.totale || 0, d.colli || 0, d.ord || '']);
+  // chiede cosa fare dei documenti già caricati
+  function askDup(list) {
+    return new Promise(res => {
+      const d = document.createElement('div'); d.className = 'dlg';
+      const diff = list.filter(x => !x.same).length;
+      d.innerHTML = `<form class="dup"><h3>${list.length === 1 ? 'Documento già caricato' : `${list.length} documenti già caricati`}</h3>
+        <p>${list.length === 1 ? 'Questo documento è già presente nel gestionale.' : 'Questi documenti sono già presenti nel gestionale.'} ${diff ? 'Quelli segnati «diverso» non coincidono con la versione salvata: se Fischer ti ha mandato una versione corretta, aggiornali.' : 'Sono identici a quelli salvati: puoi saltarli.'}</p>
+        <div class="dup-l">${list.map(x => `<div class="dup-r"><span class="dup-i ${x.tipo}">${x.tipo === 'ddt' ? 'DDT' : 'ORD'}</span><span><b>${x.tipo === 'ddt' ? 'DDT' : 'Ordine'} ${esc(x.num)}</b><small>${esc(x.pz || '')}${x.creato ? ' · caricato il ' + esc(dt(x.creato.slice(0, 10))) : ''}${x.batch ? ' · presente 2 volte in questo caricamento' : ''}</small></span>${x.batch && !x.ex ? '<span class="chip">ripetuto</span>' : x.same ? '<span class="chip ok">identico</span>' : '<span class="chip soon">diverso</span>'}</div>`).join('')}</div>
+        <div class="row"><button type="button" class="btn sm" data-skip>Salta i doppioni</button><button type="button" class="btn primary" data-upd>Aggiorna con i nuovi</button></div></form>`;
+      document.body.appendChild(d);
+      d.addEventListener('click', e => { if (e.target.closest('[data-skip]')) { d.remove(); res(false); } else if (e.target.closest('[data-upd]')) { d.remove(); res(true); } });
+    });
+  }
   async function load(files) {
     if (!mode()) return setup();
-    const bad = [], up = []; let nO = 0, nD = 0, nUpd = 0, warn = 0, last = '';
+    const bad = [], up = []; let nO = 0, nD = 0, nUpd = 0, nSkip = 0, warn = 0, last = '';
     try {
       busy('Preparo i file…');
       const docs = [];
       for (const f of files) { if (/\.zip$/i.test(f.name) || f.type === 'application/zip') { try { docs.push(...await FP.unzip(f)); } catch (e) { bad.push(`${f.name}: ${e.message}`); } } else docs.push(f); }
-      let i = 0;
+      // 1) lettura di tutti i file
+      const read = []; let i = 0;
       for (const f of docs) {
         i++; busy(`Leggo ${i} di ${docs.length}…`);
+        try { const u8 = new Uint8Array(await f.arrayBuffer()), r = await FP.read(u8.slice()); read.push({ f, u8, tipo: r.tipo, doc: r.doc }); }
+        catch (e) { bad.push(`${f.name}: ${e.message}`); }
+      }
+      // 2) doppioni: già nel gestionale, o lo stesso documento due volte in questo caricamento
+      const seen = new Map(), todo = [], dups = [];
+      read.forEach(r => {
+        const id = r.doc.id, ex = DOCS.get(id), prev = seen.get(id);
+        if (prev) { const x = dups.find(y => y.id === id); if (x) x.batch = true; else dups.push({ id, num: r.doc.num, tipo: r.tipo, pz: r.doc.pz, ex: !!ex, creato: ex && ex.creato, same: true, batch: true }); nSkip++; return; }
+        seen.set(id, r);
+        if (ex) { dups.push({ id, num: r.doc.num, tipo: r.tipo, pz: ex.tipo === 'ordine' ? pzName(ex) : pzOfD(ex), ex: true, creato: ex.creato, same: finger(ex) === finger(r.doc), r }); return; }
+        todo.push(r);
+      });
+      const exDups = dups.filter(x => x.ex);
+      if (exDups.length) { busy(); const upd = await askDup(dups); if (upd) exDups.forEach(x => todo.push(x.r || seen.get(x.id))); else nSkip += exDups.length; }
+      // 3) salvataggio
+      i = 0;
+      for (const { f, u8, tipo, doc } of todo) {
+        i++;
         try {
-          const u8 = new Uint8Array(await f.arrayBuffer()), { tipo, doc } = await FP.read(u8.slice()), ex = DOCS.get(doc.id);
+          const ex = DOCS.get(doc.id);
           const d = { ...doc, tipo, nomeFile: f.name, track: ex ? ex.track || '' : '', pdf: ex ? ex.pdf || '' : '', creato: ex ? ex.creato : new Date().toISOString() };
+          if (ex && ex.trk) d.trk = ex.trk;
           if (tipo === 'ordine') { d.stato = ex ? ex.stato : 'confermato'; d.mov = ex ? (ex.mov || []) : [{ d: today(), st: 'confermato', n: 'Conferma d\'ordine caricata' }]; if (ex && ex.pzMan) d.pzMan = ex.pzMan; if (ex) d.mov = [...d.mov, { d: today(), st: '', n: 'Conferma ricaricata e aggiornata' }]; }
-          if (!d.pdf && mode() === 'google') { busy(`Salvo il PDF ${i} di ${docs.length} su Drive…`); try { d.pdf = await Store.pdf(`Fischer ${tipo === 'ddt' ? 'DDT' : 'ordine'} ${d.num} ${d.data}.pdf`, u8); } catch (e) { bad.push(`${f.name}: PDF non archiviato (${e.message})`); } }
+          if (!d.pdf && mode() === 'google') { busy(`Salvo il PDF ${i} di ${todo.length} su Drive…`); try { d.pdf = await Store.pdf(`Fischer ${tipo === 'ddt' ? 'DDT' : 'ordine'} ${d.num} ${d.data}.pdf`, u8); } catch (e) { bad.push(`${f.name}: PDF non archiviato (${e.message})`); } }
           DOCS.set(d.id, d); up.push(d); last = d.id; ex ? nUpd++ : tipo === 'ddt' ? nD++ : nO++;
           // collegamenti: DDT nuovo → ordine «In consegna»; conferma nuova con DDT già caricati → «In consegna»
           if (tipo === 'ddt' && !d.track && d.consegna) { const h = [...DOCS.values()].find(x => x.id !== d.id && x.trk && x.trk.auto && x.trk.auto.ref === d.consegna); if (h) { d.track = h.track; d.trk = clone(h.trk); if (h.tipo === 'ordine') { h.track = ''; delete h.trk; if (!up.includes(h)) up.push(h); } } }
@@ -386,10 +421,11 @@
     finally { busy(); }
     if (nO + nD + nUpd === 1 && last) V.open = last;
     render();
-    const parts = [nO ? plur(nO, 'conferma caricata', 'conferme caricate') : '', nD ? plur(nD, 'DDT caricato', 'DDT caricati') : '', nUpd ? plur(nUpd, 'documento aggiornato', 'documenti aggiornati') : ''].filter(Boolean).join(' · ');
+    const parts = [nO ? plur(nO, 'conferma caricata', 'conferme caricate') : '', nD ? plur(nD, 'DDT caricato', 'DDT caricati') : '', nUpd ? plur(nUpd, 'documento aggiornato', 'documenti aggiornati') : '', nSkip ? plur(nSkip, 'doppione saltato', 'doppioni saltati') : ''].filter(Boolean).join(' · ');
     toast(parts ? `${parts}${warn ? ` · ${warn} da controllare` : ''}${bad.length ? ` · ${bad.length} non letti` : ''}` : `Non letto: ${bad[0] || 'file non valido'}`);
     if (bad.length && parts) setTimeout(() => toast('Problemi: ' + bad.slice(0, 3).join(' | ')), 4300);
   }
+
 
   function pasteDlg() {
     if (mode() !== 'google') return toast('Collega prima il Google Foglio: la lettura automatica passa dallo script');

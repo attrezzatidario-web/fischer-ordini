@@ -442,3 +442,8 @@ body.dragging .dz-ic { animation: dzBob 1.2s var(--ease) infinite alternate; }
 .dz-hint { flex: 1 1 100%; display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: rgba(255, 255, 255, .72); margin: -2px 0 2px 4px; }
 .dz-hint svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 @media (hover: none) { .dz-hint { display: none; } }
+.dup-l { display: flex; flex-direction: column; gap: 6px; max-height: 320px; overflow: auto; }
+.dup-r { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 9px 12px; border-radius: 14px; background: rgba(255, 255, 255, .7); box-shadow: inset 0 0 0 1px rgba(40, 30, 20, .06); }
+.dup-r b { display: block; font-size: 13.5px; } .dup-r small { color: var(--muted); font-size: 12px; }
+.dup-i { width: 40px; height: 40px; border-radius: 11px; display: grid; place-items: center; font-size: 10.5px; font-weight: 800; letter-spacing: .04em; background: #171411; color: #fff; }
+.dup-i.ddt { background: var(--accent); }
