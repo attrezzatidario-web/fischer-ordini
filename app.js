@@ -124,7 +124,7 @@
   }
 
   /* ---------- stato della pagina ---------- */
-  const V = { tab: 'pan', open: '', q: '', fst: '', fpz: '', lim: 50 };
+  const V = { tab: 'pan', open: '', q: '', fst: '', fpz: '', lim: 50, anim: true };
 
   /* ---------- viste ---------- */
   const ckHtml = (C, ok) => C.length ? C.map(c => `<div class="ck ${c.t}"><i>${c.t === 'warn' ? '!' : 'i'}</i><div><b>${esc(c.h)}</b><span>${esc(c.d)}</span></div></div>`).join('') : `<div class="empty">${ok}</div>`;
@@ -185,37 +185,10 @@
   }
 
   function overview() {
-    const O = orders(), D = ddts(), act = O.filter(open);
+    const O = orders(), D = ddts();
     if (!O.length && !D.length) return `<div class="card"><div class="empty" style="padding:50px 10px"><b style="font-size:16px;color:var(--ink)">Nessun documento ancora</b><br>Carica le conferme d'ordine e i DDT di Fischer in PDF (anche più file insieme, o uno zip).<br>Vengono letti, controllati e collegati tra loro in automatico.<br><br><button type="button" class="btn primary" data-up>+ Carica PDF</button></div></div>`;
-    const inCons = act.filter(o => o.stato === 'spedito'), lt = act.filter(late), part = act.filter(o => shipSt(o) === 'parte'), dx = D.filter(d => !ordOf(d)), notrk = D.filter(d => !d.track && tkIdx(d) < 4 && (!ordOf(d) || open(ordOf(d))));
-    const k = (cls, l, n, s, go) => `<button type="button" class="kpi ${cls}" data-go="${go}"><small>${l}</small><b>${n}</b><span>${s}</span></button>`;
-    const kp = `<div class="kpis">
-      ${k('', 'Ordini aperti', num(act.length), eur(r2(act.reduce((s, o) => s + (o.imponibile || 0), 0))) + ' imponibile', 'ord:aperti')}
-      ${k('', 'In consegna', num(inCons.length), 'merce partita', 'ord:spedito')}
-      ${k(part.length ? 'warn' : 'good', 'Spediti in parte', num(part.length), part.length ? 'manca ancora merce' : 'nessuno', 'ord:parte')}
-      ${k(lt.length ? 'bad' : 'good', 'In ritardo', num(lt.length), lt.length ? 'oltre la data prevista' : 'nessuno', 'ord:ritardo')}
-      ${k(dx.length ? 'warn' : 'good', 'DDT senza conferma', num(dx.length), dx.length ? 'carica la conferma' : 'tutti collegati', 'ddt:senza')}
-      ${k(notrk.length ? 'warn' : 'good', 'Senza tracciamento', num(notrk.length), notrk.length ? 'DDT ancora in viaggio' : 'tutti con link', 'ddt:notrk')}
-    </div>`;
-    // per piazzale
-    const P = new Map();
-    O.forEach(o => { const n = pzName(o); if (!P.has(n)) P.set(n, { n, a: 0, pz: 0, imp: 0, last: '', lt: 0 }); const p = P.get(n); if (open(o)) { p.a++; p.imp += o.imponibile || 0; p.pz += shortOf(o, shipped(o)).reduce((s, x) => s + x.r, 0); if (late(o)) p.lt++; } });
-    D.forEach(d => { const n = pzOfD(d); if (!P.has(n)) P.set(n, { n, a: 0, pz: 0, imp: 0, last: '', lt: 0 }); const p = P.get(n); if (String(d.data) > p.last) p.last = d.data; });
-    const trav = [...D.filter(d => tkIdx(d) < 4 && (!ordOf(d) || open(ordOf(d)))), ...act.filter(o => !ddtsOf(o).length && o.track && tkIdx(o) < 4)].sort((a, b) => String((a.trk && a.trk.eta) || '9').localeCompare(String((b.trk && b.trk.eta) || '9')));
-    const pzs = [...P.values()].sort((a, b) => b.a - a.a || a.n.localeCompare(b.n, 'it'));
-    const todo = [];
-    act.forEach(o => checksO(o).filter(c => c.t === 'warn').forEach(c => todo.push({ id: o.id, h: `Ordine ${o.num} · ${pzName(o)}`, c })));
-    D.forEach(d => checksD(d).filter(c => c.t === 'warn').forEach(c => todo.push({ id: d.id, h: `DDT ${d.num} · ${pzOfD(d)}`, c })));
-    return `${kp}<div class="grid2"><div>
-      <div class="card"><div class="card-h"><h3>Piazzali</h3><span class="muted small">${plur(pzs.length, 'piazzale', 'piazzali')}</span></div><div class="pzs">${pzs.map(p => `<button type="button" class="pz" data-pz="${esc(p.n)}"><h4>${esc(p.n)}${p.lt ? '<span class="chip late">ritardo</span>' : p.a ? '<span class="chip blue">aperti</span>' : '<span class="chip ok">ok</span>'}</h4><dl><dt>Ordini aperti</dt><dd>${num(p.a)}</dd><dt>Pezzi da ricevere</dt><dd>${num(p.pz)}</dd><dt>Ultimo DDT</dt><dd>${p.last ? dt(p.last) : '—'}</dd></dl></button>`).join('')}</div></div>
-      <div class="card"><div class="card-h"><h3>Spedizioni in viaggio</h3><button type="button" class="btn sm" data-go="ddt:viaggio">Tutte</button></div>${trav.length ? trav.slice(0, 5).map(x => `<button type="button" class="trv" data-open="${esc(x.id)}"><div class="trv-h"><b>${esc(x.tipo === 'ddt' ? 'DDT ' + x.num : 'Ordine ' + x.num)} · ${esc(x.tipo === 'ddt' ? pzOfD(x) : pzName(x))}</b><span>${x.trk && x.trk.eta ? 'prevista ' + esc(dt(x.trk.eta)) : ''}</span></div>${stepper(x)}</button>`).join('') : '<div class="empty">Nessuna spedizione in viaggio</div>'}</div>
-      <div class="card"><div class="card-h"><h3>Ultimi DDT</h3><button type="button" class="btn sm" data-go="ddt:">Tutti</button></div><div class="ol">${D.slice(0, 5).map(rowD).join('') || '<div class="empty">Nessun DDT caricato</div>'}</div></div>
-    </div><div>
-      <div class="card"><div class="card-h"><h3>Da controllare</h3><span class="muted small">${todo.length ? plur(todo.length, 'avviso', 'avvisi') : 'tutto in ordine'}</span></div>${todo.slice(0, 30).map(t => `<button type="button" class="todo" data-open="${esc(t.id)}"><i class="${t.c.h === 'In ritardo' ? 'bad' : ''}"></i><div><b>${esc(t.h)}</b><span>${esc(t.c.h)}: ${esc(t.c.d)}</span></div></button>`).join('') || '<div class="empty">Numeri, quantità e collegamenti tornano</div>'}</div>
-      <div class="card"><div class="card-h"><h3>Ordini aperti</h3><button type="button" class="btn sm" data-go="ord:aperti">Tutti</button></div><div class="ol">${act.slice(0, 6).map(o => `<button type="button" class="todo" data-open="${esc(o.id)}"><div style="flex:1"><b>${esc(o.num)} · ${esc(pzName(o))}</b><span>${esc(dt(o.data))} · ${esc(stLabel(o))}${shipSt(o) === 'parte' ? ' · spedito in parte' : ''}</span></div>${stChip(o)}</button>`).join('') || '<div class="empty">Nessun ordine aperto</div>'}</div></div>
-    </div></div>`;
+    return FPAN.html({ orders, ddts, open, late, shipSt, shortOf, shipped, pzName, pzOfD, tkIdx, ordOf, ddtsOf, nextDel, checksO, checksD, stepper, PZ_LIST, esc, num, eur, dt, today });
   }
-
   function pzChips(names) {
     return names.length > 1 ? `<div class="chips">${[['', 'Tutti i piazzali'], ...names.sort((a, b) => a.localeCompare(b, 'it')).map(n => [n, n])].map(([k, l]) => `<button type="button" class="chip-f${V.fpz === k ? ' on' : ''}" data-fpz="${esc(k)}">${esc(l)}</button>`).join('')}</div>` : '';
   }
@@ -342,7 +315,8 @@
     const ae = document.activeElement, keep = ae && ae.id === 'q' ? ae.selectionStart : null;
     $('#app').innerHTML = `<div class="bar"><div class="seg">${[['pan', 'Panoramica'], ['ord', 'Ordini'], ['ddt', 'DDT']].map(([k, l]) => `<button type="button" data-tab="${k}" class="${!doc && V.tab === k ? 'on' : ''}">${l}</button>`).join('')}</div>
       <label class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="q" type="search" placeholder="Cerca ordine, DDT, piazzale, articolo, segnacollo…" value="${esc(V.q)}" autocomplete="off"></label></div>
-      ${!doc && V.tab === 'pan' && DOCS.size ? '<div class="drop" data-up>Trascina qui conferme d\'ordine e DDT in PDF, oppure <b>scegli i file</b></div>' : ''}${body}`;
+      ${body}`;
+    if (!doc && V.tab === 'pan') { FPAN.after($('#app'), V.anim, { eur, num, esc }); V.anim = false; }
     if (keep != null) { const i = $('#q'); i.focus(); try { i.setSelectionRange(keep, keep); } catch { } }
   }
 
@@ -435,11 +409,12 @@
     const b = s => e.target.closest(s); let x;
     if (b('#up') || b('[data-up]')) return $('#file').click();
     if (b('#mode')) return setup();
-    if ((x = b('[data-tab]'))) { V.tab = x.dataset.tab; V.open = ''; V.fst = ''; V.lim = 50; return render(); }
+    if ((x = b('[data-tab]'))) { V.anim = x.dataset.tab === 'pan' && (V.tab !== 'pan' || !!V.open); V.tab = x.dataset.tab; V.open = ''; V.fst = ''; V.lim = 50; return render(); }
     if ((x = b('[data-go]'))) { const [t, f] = x.dataset.go.split(':'); V.tab = t; V.fst = f; V.fpz = ''; V.open = ''; V.q = ''; return render(); }
+    if ((x = b('[data-mpz]'))) { V.tab = 'ord'; V.fpz = x.dataset.mpz; V.fst = ''; V.open = ''; return render(); }
     if ((x = b('[data-pz]'))) { V.tab = 'ord'; V.fpz = x.dataset.pz; V.fst = 'aperti'; V.open = ''; return render(); }
     if ((x = b('[data-open]'))) { V.open = x.dataset.open; window.scrollTo(0, 0); return render(); }
-    if (b('[data-back]')) { V.open = ''; return render(); }
+    if (b('[data-back]')) { V.anim = V.tab === 'pan'; V.open = ''; return render(); }
     if ((x = b('[data-fst]'))) { V.fst = x.dataset.fst; V.lim = 50; return render(); }
     if ((x = b('[data-fpz]'))) { V.fpz = x.dataset.fpz; V.lim = 50; return render(); }
     if (b('[data-more]')) { V.lim += 100; return render(); }
