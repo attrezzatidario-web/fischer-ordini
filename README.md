@@ -4,7 +4,7 @@ Sito per seguire gli acquisti di tasselli dal fornitore Fischer, con consegna ai
 
 - **Conferme d'ordine (PDF)**: vengono lette e controllate (righe, sconto, IVA, totale). Il piazzale si ricava dalla destinazione.
 - **DDT (PDF)**: vengono letti (colli, segnacollo, corriere, articoli) e si **collegano da soli** alla conferma tramite il numero d'ordine. Per ogni articolo si vede confermato, spedito e quanto resta da spedire.
-- **Link di tracciamento**: si incolla sul DDT, oppure sull'ordine se il DDT non è ancora arrivato.
+- **Spedizione**: si incolla il link del corriere (sul DDT, oppure sull'ordine se il DDT non è ancora arrivato) e si registrano gli aggiornamenti: caricato, all'hub, partito dall'hub, in consegna, consegnato, oppure un problema o una giacenza, con data, luogo e consegna prevista. Il sito mostra le fasi, la consegna prevista e lo storico. Quando tutta la merce risulta consegnata, l'ordine si chiude da solo.
 - **Panoramica**: ordini aperti, in consegna, spediti in parte, in ritardo, DDT senza conferma e situazione per piazzale.
 
 Si possono caricare più PDF insieme, o uno zip: il sito riconosce da solo se ogni file è una conferma o un DDT.
