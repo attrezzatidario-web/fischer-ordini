@@ -41,7 +41,7 @@ body { font-family: var(--font); background: transparent; color: var(--ink); min
 body::before, body::after { content: ''; position: fixed; inset: 0; pointer-events: none; }
 body::before { z-index: -2; }
 body::after { z-index: -1; background: linear-gradient(180deg, rgba(40, 30, 20, 0.08), rgba(40, 30, 20, 0.22)); }
-@keyframes roomIn { from { opacity: 0; transform: scale(1.08); filter: blur(14px); } }
+@keyframes roomIn { from { opacity: 0; transform: scale(1.04); } }
 :root { --zz: 1; } @media (min-width: 981px) { :root { --zz: .88; } }
 .app, .dlg, .toast { zoom: var(--zz); }
 .app { min-height: 100svh; padding: clamp(14px, 2.4vw, 34px) clamp(4px, .6vw, 10px) 40px; }
@@ -92,8 +92,8 @@ body::after { z-index: -1; background: linear-gradient(180deg, rgba(40, 30, 20, 
 @keyframes pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--pulse, var(--accent)) 60%, transparent); } 75%, 100% { box-shadow: 0 0 0 8px transparent; } }
 
 /* ---------------- movimento condiviso ---------------- */
-@keyframes rise { from { opacity: 0; transform: translateY(12px); filter: blur(6px); } }
-@keyframes wordIn { from { opacity: 0; transform: translateY(70%) rotate(2deg); filter: blur(10px); } }
+@keyframes rise { from { opacity: 0; transform: translate3d(0, 12px, 0); } }
+@keyframes wordIn { from { opacity: 0; transform: translate3d(0, 70%, 0) rotate(2deg); } }
 @keyframes popIn { from { opacity: 0; transform: scale(.6); } }
 @keyframes cardIn { from { opacity: 0; transform: translateY(24px) scale(.975); } }
 .main { padding: 0 4px; }
@@ -593,10 +593,10 @@ body.dragging .dz-ic { animation: dzBob 1.2s var(--ease) infinite alternate; }
 
 /* passaggio tra le pagine (View Transitions): la barra in alto resta ferma, il contenuto si dissolve e scivola */
 .topbar { view-transition-name: topbar; } .nav { view-transition-name: nav; }
-::view-transition-old(root) { animation: vtOut .22s var(--e-io) both; }
-::view-transition-new(root) { animation: vtIn .42s var(--e-out) both; }
-@keyframes vtOut { to { opacity: 0; transform: translateY(-6px); filter: blur(3px); } }
-@keyframes vtIn { from { opacity: 0; transform: translateY(14px); filter: blur(3px); } }
+::view-transition-old(root) { animation: vtOut .16s var(--e-io) both; }
+::view-transition-new(root) { animation: vtIn .24s var(--e-out) both; }
+@keyframes vtOut { to { opacity: 0; } }
+@keyframes vtIn { from { opacity: 0; } }
 ::view-transition-group(topbar), ::view-transition-group(nav) { animation-duration: .3s; }
 
 /* scheletro durante il caricamento dei dati */
@@ -631,3 +631,40 @@ body.dragging .dz-ic { animation: dzBob 1.2s var(--ease) infinite alternate; }
 @keyframes toastOut { to { opacity: 0; transform: translate(-50%, 10px) scale(.97); } }
 @keyframes toastT { to { transform: scaleX(0); } }
 @media (prefers-reduced-motion: reduce) { .pan.io .rv:not(.go), .pan.io .hero:not(.go) { opacity: 1; } ::view-transition-old(root), ::view-transition-new(root) { animation: none; } }
+
+/* ================= fluidità =================
+   Niente vetri sfocati (senza foto di sfondo non servono e costano a ogni fotogramma),
+   niente filtri sulle parti animate, animazioni continue in pausa quando non si vedono. */
+.window::before, .nav::before, .tool::before, .gsearch::before, .stack-layer::before, .stack-card::before,
+.mstat span, .mleg2, .mtip, .dlg, .dlg form, .toast, .busy, .dropzone, .top { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+.stack-layer::before, .stack-card::before { background: linear-gradient(180deg, rgba(58, 46, 36, .92), rgba(44, 35, 28, .94)); }
+.mleg2 { background: rgba(13, 21, 28, .88); } .mstat span { background: rgba(23, 33, 41, .92); }
+.dlg { background: rgba(30, 22, 14, .5); } .dlg form { background: #faf7f3; }
+.busy { background: rgba(40, 30, 20, .4); } .dropzone { background: rgba(20, 16, 12, .62); }
+.hero::before { filter: none; }
+/* mappa: il livello animato sta sopra a quello fermo, senza filtri */
+.map3d { position: relative; }
+.itmap.ov { position: absolute; inset: 0; pointer-events: none; }
+.itmap.ov .m-pin { pointer-events: auto; }
+.m-comet .m-cg { fill: currentColor; opacity: .22; } .m-comet { color: #9ff0e2; fill: #d9fff7; } .m-comet.bad { color: #ff8a7f; fill: #ffd2cc; }
+.m-pin .m-dot { filter: none !important; }
+.m-glo { fill: var(--c); opacity: .18; pointer-events: none; }
+.m-still .m-ring, .m-still .m-halo { animation-play-state: paused !important; }
+/* scorrimento: le schede fuori schermo non vengono disegnate */
+.g3b > .card { content-visibility: auto; contain-intrinsic-size: auto 420px; }
+.kp b, [data-count], [data-cents] { font-variant-numeric: tabular-nums; }
+/* pulsazione dei pallini: anello su livello proprio (scala + opacità) invece dell'ombra ridisegnata a ogni fotogramma */
+.mode.tool.on b, .stack-top .dot { animation: none !important; position: relative; }
+.mode.tool.on b::after, .stack-top .dot::after { content: ''; position: absolute; inset: 0; border-radius: 50%; background: var(--pulse); opacity: 0; animation: pulse2 2.4s ease-out 1.4s infinite; will-change: transform, opacity; }
+@keyframes pulse2 { 0% { transform: scale(1); opacity: .55; } 75%, 100% { transform: scale(2.8); opacity: 0; } }
+/* mappa: il livello animato ha un suo strato, così il fondo (con l'ombra) non si ridisegna */
+.itmap.ov { will-change: transform; transform: translateZ(0); }
+.go .m-reg { animation: none; }
+.go .m-terra { animation: fadeIn 1s var(--e-out) .1s backwards; }
+/* ritorno sulla Panoramica: entrata breve, senza rifare tutta la coreografia */
+.pan.lite .go :not(.m-ring):not(.m-halo):not(.dot), .pan.lite .go *::before { animation-duration: 0s !important; animation-delay: 0s !important; }
+.pan.lite.io .rv.go { animation: secIn .45s var(--e-out) both; }
+.pan.lite.io .hero.go { animation: fadeIn .3s var(--e-out) both; }
+/* telefono: la scheda mappa si allunga per contenere numeri, mappa intera e legenda */
+@media (max-width: 560px) { .mapbox { height: auto !important; width: 100%; aspect-ratio: auto !important; } .mapbox .map3d { aspect-ratio: 226 / 214; height: auto; } }
+@media (max-width: 980px) { .nav::before { background: rgba(48, 38, 29, .94) !important; } }

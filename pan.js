@@ -116,22 +116,25 @@
     const arc = (x, y) => { const dx = x - ox, dy = y - oy, d = Math.hypot(dx, dy), bend = Math.min(.3, 18 / Math.max(d, 1)) * d; const mx = (ox + x) / 2 - dy / d * bend, my = (oy + y) / 2 + dx / d * bend * (dx > 0 ? -1 : 1); return `M${f1(ox)} ${f1(oy)}Q${f1(mx)} ${f1(my)} ${f1(x)} ${f1(y)}`; };
     const goPts = pts.filter(q => q.p.v), waitPts = pts.filter(q => !q.p.v && q.p.a);
     const lbl = (l, x, y, txt, cls) => `${l.d > 12 ? `<path class="m-lead" d="M${f1(x)} ${f1(y)}L${f1(l.ex)} ${f1(l.ey)}"/>` : ''}<text class="m-lbl${cls ? ' ' + cls : ''}" data-px="${f1(x)}" x="${f1(l.an === 'start' ? l.ex + 2 * k : l.an === 'end' ? l.ex - 2 * k : l.ex)}" y="${f1(l.ey + F * .36)}" text-anchor="${l.an}">${esc(txt)}</text>`;
-    const mapSvg = `<svg class="itmap" viewBox="${VX} ${VY} ${VW} ${VH}" preserveAspectRatio="xMidYMid slice" style="--k:${f2(k)}" role="img" aria-label="Mappa dei piazzali e delle spedizioni in viaggio">
+    const vb = `viewBox="${VX} ${VY} ${VW} ${VH}" preserveAspectRatio="xMidYMid slice" style="--k:${f2(k)}"`;
+    // livello fermo: mare, regioni con ombra, rotte, etichette (disegnato una volta sola)
+    const mapSvg = `<svg class="itmap" ${vb} role="img" aria-label="Mappa dei piazzali e delle spedizioni in viaggio">
       <defs>
         <radialGradient id="msea" cx=".55" cy=".35" r=".8"><stop offset="0" stop-color="#1b2a36"/><stop offset="1" stop-color="#0d151c"/></radialGradient>
-        <linearGradient id="mland" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2b3c49"/><stop offset="1" stop-color="#223240"/></linearGradient>
         <linearGradient id="marc" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#3fc4ae" stop-opacity=".25"/><stop offset="1" stop-color="#3fc4ae" stop-opacity=".95"/></linearGradient>
-        <filter id="mglow" x="-300%" y="-300%" width="700%" height="700%"><feGaussianBlur stdDeviation="${f2(2.2 * k)}" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
         <filter id="mland-sh" x="-10%" y="-10%" width="120%" height="120%"><feDropShadow dx="0" dy="${f2(3 * k)}" stdDeviation="${f2(5 * k)}" flood-color="#000" flood-opacity=".55"/></filter>
       </defs>
       <rect class="m-sea" x="${VX - 20}" y="${VY - 20}" width="${VW + 40}" height="${VH + 40}" fill="url(#msea)"/>
       <g class="m-terra" filter="url(#mland-sh)">${REG.filter(r => !/Sicilia|Sardegna|Calabria|Basilicata/.test(r.n)).map((r, i) => { const o = regSt[r.n]; return `<path class="m-reg${o ? (o.lt ? ' bad' : o.v ? ' go' : o.a ? ' open' : ' has') : ''}" d="${r.d}" data-reg="${esc(r.n)}" style="--i:${i}"/>`; }).join('')}</g>
       ${waitPts.map((q, i) => `<path class="m-wait" d="${arc(q.x, q.y)}" pathLength="1" style="--d:${f2(.9 + i * .1)}s"/>`).join('')}
-      ${goPts.map((q, i) => `<path id="rt${i}" class="m-route${q.p.lt ? ' bad' : ''}" d="${arc(q.x, q.y)}" pathLength="1" style="--d:${f2(.8 + i * .15)}s"/>`).join('')}
-      ${goPts.map((q, i) => `<circle class="m-comet${q.p.lt ? ' bad' : ''}" r="${f2(2 * k)}" filter="url(#mglow)"><animateMotion dur="${(2.6 + i * .35).toFixed(2)}s" repeatCount="indefinite" begin="${(1.8 + i * .3).toFixed(2)}s" keyPoints="0;1" keyTimes="0;1" calcMode="spline" keySplines=".4 0 .6 1"><mpath href="#rt${i}"/></animateMotion></circle>`).join('')}
+      ${goPts.map((q, i) => `<path class="m-route${q.p.lt ? ' bad' : ''}" d="${arc(q.x, q.y)}" pathLength="1" style="--d:${f2(.8 + i * .15)}s"/>`).join('')}
       <g class="m-lbls">${lbl(hq, ox, oy, 'FISCHER · PADOVA', 'hq')}${pts.map(q => lbl(q.l, q.x, q.y, q.p.n.toUpperCase(), q.st)).join('')}</g>
+    </svg>
+    <svg class="itmap ov" ${vb} aria-hidden="false">
+      <defs>${goPts.map((q, i) => `<path id="rt${i}" d="${arc(q.x, q.y)}"/>`).join('')}</defs>
+      ${goPts.map((q, i) => `<g class="m-comet${q.p.lt ? ' bad' : ''}"><circle class="m-cg" r="${f2(5 * k)}"/><circle r="${f2(2 * k)}"/><animateMotion dur="${(2.6 + i * .35).toFixed(2)}s" repeatCount="indefinite" begin="${(1.8 + i * .3).toFixed(2)}s" keyPoints="0;1" keyTimes="0;1" calcMode="spline" keySplines=".4 0 .6 1"><mpath href="#rt${i}"/></animateMotion></g>`).join('')}
       <g class="m-origin" transform="translate(${f1(ox)} ${f1(oy)})"><circle class="m-ring" r="${f2(5 * k)}"/><circle class="m-ring r2" r="${f2(5 * k)}"/><rect x="${f2(-4.2 * k)}" y="${f2(-4.2 * k)}" width="${f2(8.4 * k)}" height="${f2(8.4 * k)}" transform="rotate(45)"/></g>
-      ${pts.map((q, i) => `<g class="m-pin ${q.st}" data-mpz="${esc(q.p.n)}" transform="translate(${f1(q.x)} ${f1(q.y)})" tabindex="0" role="button" aria-label="${esc(q.p.n)}"><g class="m-pin-in" style="--d:${f2(1 + i * .05)}s">${q.st === 'go' || q.st === 'bad' ? `<circle class="m-halo" r="${f2(R(q))}"/>` : ''}<circle class="m-hit" r="${f2(R(q) + 5 * k)}"/><circle class="m-dot" r="${f2(R(q))}"/></g></g>`).join('')}
+      ${pts.map((q, i) => `<g class="m-pin ${q.st}" data-mpz="${esc(q.p.n)}" transform="translate(${f1(q.x)} ${f1(q.y)})" tabindex="0" role="button" aria-label="${esc(q.p.n)}"><g class="m-pin-in" style="--d:${f2(1 + i * .05)}s">${q.st === 'go' || q.st === 'bad' ? `<circle class="m-halo" r="${f2(R(q))}"/>` : ''}${q.st === 'go' || q.st === 'bad' || q.st === 'open' ? `<circle class="m-glo" r="${f2(R(q) * 1.9)}"/>` : ''}<circle class="m-hit" r="${f2(R(q) + 5 * k)}"/><circle class="m-dot" r="${f2(R(q))}"/></g></g>`).join('')}
     </svg>`;
     const mapStats = `<div class="mstat"><span><b>${num(goPts.length)}</b>in viaggio</span><span><b>${num(waitPts.length)}</b>in attesa</span><span><b>${num(pts.filter(q => q.p.tot).length)}</b>piazzali serviti</span></div>
       <div class="mleg2"><span><i class="go"></i>In viaggio</span><span><i class="open"></i>In attesa</span><span><i class="bad"></i>In ritardo</span><span><i class="ok"></i>Consegnato</span><span><i class="hq"></i>Fischer Padova</span></div>`;
@@ -208,16 +211,25 @@
     const ease = k => k === 1 ? 1 : 1 - Math.pow(2, -10 * k);   // decelerazione morbida (expo)
     const tween = (dur, fn) => { const t0 = performance.now(); const step = t => { const k = Math.min(1, (t - t0) / dur); fn(ease(k)); if (k < 1) requestAnimationFrame(step); }; requestAnimationFrame(step); };
     const count = el => { const to = Number(el.dataset.count) || 0, f = el.dataset.fmt === 'eur' ? fmt.eur : fmt.num; if (!to) return; el.textContent = f(0); tween(1300, e => { el.textContent = f(el.dataset.fmt === 'eur' ? to * e : Math.round(to * e)); }); };
-    const countCents = el => { const to = Number(el.dataset.cents) || 0, cur = el.querySelector('.cur'), cu = cur ? cur.outerHTML : ''; if (!to) return; tween(1500, e => { const t = fmt.eur(to * e).replace(/\s*€$/, ''), i = t.lastIndexOf(','); el.innerHTML = (i < 0 ? fmt.esc(t) : `${fmt.esc(t.slice(0, i))}<span class="cents">${fmt.esc(t.slice(i))}</span>`) + cu; }); };
-    const reveal = sec => { if (sec.classList.contains('go')) return; sec.classList.add('go'); [sec, ...sec.querySelectorAll('[data-count]')].filter(x => x.dataset && x.dataset.count != null).forEach(count); sec.querySelectorAll('[data-cents]').forEach(countCents); };
+    const countCents = el => { const to = Number(el.dataset.cents) || 0, cur = el.querySelector('.cur'), cu = cur ? cur.outerHTML : ''; if (!to) return; el.innerHTML = `<span class="int"></span><span class="cents"></span>${cu}`; const a = el.firstChild, c = a.nextSibling; tween(1500, e => { const t = fmt.eur(to * e).replace(/\s*€$/, ''), i = t.lastIndexOf(','); a.textContent = i < 0 ? t : t.slice(0, i); c.textContent = i < 0 ? '' : t.slice(i); }); };
+    const lite = anim === 'lite';
+    const reveal = sec => { if (sec.classList.contains('go')) return; sec.classList.add('go'); if (lite) return; [sec, ...sec.querySelectorAll('[data-count]')].filter(x => x.dataset && x.dataset.count != null).forEach(count); sec.querySelectorAll('[data-cents]').forEach(countCents); };
     if (anim && !reduce && 'IntersectionObserver' in window) {
-      pan.classList.add('io');
+      pan.classList.add('io'); if (lite) pan.classList.add('lite');
       const io = new IntersectionObserver(es => {
         es.filter(e => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top || a.boundingClientRect.left - b.boundingClientRect.left)
-          .forEach((e, k) => { io.unobserve(e.target); setTimeout(() => reveal(e.target), Math.min(k, 8) * 75); });
+          .forEach((e, k) => { io.unobserve(e.target); setTimeout(() => reveal(e.target), Math.min(k, 8) * (lite ? 30 : 75)); });
       }, { threshold: .14, rootMargin: '0px 0px -5% 0px' });
       pan.querySelectorAll('.hero, .rv').forEach(x => io.observe(x));
     } else pan.classList.add('still');
+    // animazioni continue solo quando si vedono (risparmia lavoro e scatti)
+    const ovs = [...pan.querySelectorAll('.itmap.ov')];
+    if (ovs.length) {
+      let vis = false; const sync = () => { const on = vis && !document.hidden; pan.classList.toggle('m-still', !on); ovs.forEach(v => { try { on ? v.unpauseAnimations() : v.pauseAnimations(); } catch { } }); };
+      if ('IntersectionObserver' in window) new IntersectionObserver(es => { vis = es[es.length - 1].isIntersecting; sync(); }, { rootMargin: '80px' }).observe(ovs[0]); else { vis = true; }
+      if (!pan.__vis) { pan.__vis = 1; document.addEventListener('visibilitychange', () => { if (document.contains(pan)) sync(); }); }
+      sync();
+    }
     // suggerimento sulla mappa
     const box = pan.querySelector('.mapbox'), tip = box && box.querySelector('.mtip');
     if (!box) return;

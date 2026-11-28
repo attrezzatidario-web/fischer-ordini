@@ -352,7 +352,7 @@
     const app = $('#app'), doc = V.open && DOCS.get(V.open);
     navSync(true);
     app.querySelectorAll('table.mx').forEach(t => { const H = [...t.querySelectorAll('thead th')].map(th => th.textContent.trim()); t.querySelectorAll('tbody tr').forEach(tr => [...tr.children].forEach((td, i) => { if (H[i]) td.dataset.label = H[i]; })); });
-    if (!doc && V.tab === 'pan') { FPAN.after(app, V.anim, { eur, num, esc }); V.anim = false; }
+    if (!doc && V.tab === 'pan') { FPAN.after(app, V.anim, { eur, num, esc }); V.anim = false; V.seen = true; }
   }
   addEventListener('resize', () => navSync(false));
 
@@ -501,12 +501,12 @@
     const b = s => e.target.closest(s); let x;
     if (b('#up') || b('[data-up]')) return $('#file').click();
     if (b('#mode')) return setup();
-    if ((x = b('[data-tab]'))) { V.anim = x.dataset.tab === 'pan' && (V.tab !== 'pan' || !!V.open); V.tab = x.dataset.tab; V.open = ''; V.fst = ''; V.lim = 50; return render(); }
+    if ((x = b('[data-tab]'))) { V.anim = x.dataset.tab === 'pan' && (V.tab !== 'pan' || !!V.open) && (V.seen ? 'lite' : true); V.tab = x.dataset.tab; V.open = ''; V.fst = ''; V.lim = 50; return render(); }
     if ((x = b('[data-go]'))) { const [t, f] = x.dataset.go.split(':'); V.tab = t; V.fst = f; V.fpz = ''; V.open = ''; V.q = ''; return render(); }
     if ((x = b('[data-mpz]'))) { V.tab = 'ord'; V.fpz = x.dataset.mpz; V.fst = ''; V.open = ''; return render(); }
     if ((x = b('[data-pz]'))) { V.tab = 'ord'; V.fpz = x.dataset.pz; V.fst = 'aperti'; V.open = ''; return render(); }
     if ((x = b('[data-open]'))) { V.open = x.dataset.open; window.scrollTo(0, 0); return render(); }
-    if (b('[data-back]')) { V.anim = V.tab === 'pan'; V.open = ''; return render(); }
+    if (b('[data-back]')) { V.anim = V.tab === 'pan' && 'lite'; V.open = ''; return render(); }
     if ((x = b('[data-fst]'))) { V.fst = x.dataset.fst; V.lim = 50; return render(); }
     if ((x = b('[data-fpz]'))) { V.fpz = x.dataset.fpz; V.lim = 50; return render(); }
     if (b('[data-more]')) { V.lim += 100; return render(); }
