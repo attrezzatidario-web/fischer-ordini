@@ -338,8 +338,18 @@
     const body = doc ? (doc.tipo === 'ordine' ? orderDetail(doc) : ddtDetail(doc)) : V.tab === 'ord' ? ordersView() : V.tab === 'ddt' ? ddtView() : overview();
     const q = $('#q'); if (q && document.activeElement !== q && q.value !== V.q) q.value = V.q;
     const app = $('#app'), key = (doc ? doc.id : V.tab);
-    app.classList.toggle('settled', app.dataset.k === key); app.dataset.k = key;
-    app.innerHTML = `${pageHead(doc)}${body}`;
+    const changed = app.dataset.k !== key;
+    const paint = () => {
+      app.classList.toggle('settled', !changed); app.dataset.k = key;
+      app.innerHTML = `${pageHead(doc)}${body}`;
+      app.querySelectorAll('.ol > .or').forEach((r, i) => r.style.setProperty('--n', i));
+    };
+    if (changed && app.dataset.k && document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) { document.startViewTransition(() => { paint(); after(); }); return; }
+    paint();
+    after();
+  }
+  function after() {
+    const app = $('#app'), doc = V.open && DOCS.get(V.open);
     navSync(true);
     app.querySelectorAll('table.mx').forEach(t => { const H = [...t.querySelectorAll('thead th')].map(th => th.textContent.trim()); t.querySelectorAll('tbody tr').forEach(tr => [...tr.children].forEach((td, i) => { if (H[i]) td.dataset.label = H[i]; })); });
     if (!doc && V.tab === 'pan') { FPAN.after(app, V.anim, { eur, num, esc }); V.anim = false; }
@@ -348,8 +358,17 @@
 
   /* ---------- avvisi ---------- */
   let tT;
-  function toast(m) { let t = $('.toast'); if (!t) { t = document.createElement('div'); t.className = 'toast'; document.body.appendChild(t); } t.textContent = m; clearTimeout(tT); tT = setTimeout(() => t.remove(), 4200); }
-  function busy(m) { let b = $('.busy'); if (!m) { if (b) b.remove(); return; } if (!b) { b = document.createElement('div'); b.className = 'busy'; b.innerHTML = '<div></div>'; document.body.appendChild(b); } b.firstChild.textContent = m; }
+  function toast(m) {
+    const o = $('.toast'); if (o) o.remove();
+    const t = document.createElement('div'); t.className = 'toast' + (/^(Non |Problemi|Lettura non|Accesso non|Dati non|Aggiornamento non|Il link deve|Si possono|Collega prima|L'indirizzo)/.test(m) ? ' err' : ''); t.textContent = m; document.body.appendChild(t);
+    clearTimeout(tT); tT = setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 320); }, 4200);
+  }
+  function busy(m) {
+    let b = $('.busy'); if (!m) { if (b) b.remove(); return; }
+    if (!b) { b = document.createElement('div'); b.className = 'busy'; b.innerHTML = '<div><i class="ring"></i><span></span><i class="bar"><i></i></i></div>'; document.body.appendChild(b); }
+    const pr = /(\d+) di (\d+)/.exec(m), bar = b.querySelector('.bar');
+    b.querySelector('span').textContent = m; bar.classList.toggle('ind', !pr); if (pr) bar.style.setProperty('--p', `${Math.round(+pr[1] / +pr[2] * 100)}%`);
+  }
 
   /* ---------- salvataggio ---------- */
   async function save(docs, msg, later) {
@@ -466,9 +485,11 @@
       finally { busy(); }
     });
   }
+  const skeleton = () => `<div class="skel"><div class="skel-hero"><div class="col"><i class="sk dark" style="height:16px;width:60%"></i><i class="sk dark" style="height:54px;width:80%"></i><i class="sk dark" style="height:50px;width:70%;border-radius:999px"></i></div><div class="col"><i class="sk dark" style="height:150px"></i></div><div class="col"><i class="sk dark" style="height:190px;border-radius:22px"></i></div></div>
+    <div class="skel-kps">${'<i class="sk" style="height:130px"></i>'.repeat(6)}</div><i class="sk" style="height:480px"></i></div>`;
   async function boot() {
     if (!mode()) { render(); return setup(); }
-    try { busy('Carico i dati…'); DOCS = new Map((await Store.load()).filter(d => d && d.id && Array.isArray(d.righe)).map(d => [d.id, d])); }
+    try { if (!DOCS.size) $('#app').innerHTML = skeleton(); else busy('Carico i dati…'); DOCS = new Map((await Store.load()).filter(d => d && d.id && Array.isArray(d.righe)).map(d => [d.id, d])); }
     catch (e) { toast('Dati non caricati: ' + e.message); }
     finally { busy(); }
     render();

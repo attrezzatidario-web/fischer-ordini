@@ -67,7 +67,7 @@
       </div>
       <div class="stack"><span class="stack-layer l3"></span><span class="stack-layer l2"></span><div class="stack-card">
         <div class="stack-top"><span class="dot"></span><span>Ordini aperti · ${now.getFullYear()}</span><b>FISCHER</b></div>
-        <div class="stack-val">${cents(impAperto)}<span class="cur"> €</span></div>
+        <div class="stack-val" data-cents="${impAperto}">${cents(impAperto)}<span class="cur"> €</span></div>
         <div class="stack-pill">${ico('box')}${num(pzArrivo)} pezzi in arrivo</div>
         <p class="stack-sub">${num(act.length)} ${act.length === 1 ? 'ordine aperto' : 'ordini aperti'} · puntualità ${punt == null ? '—' : punt + '%'}</p></div></div></section>`;
     const spark = vals => { const m = Math.max(1, ...vals), pts = vals.map((v, i) => [i * 100 / (vals.length - 1), 26 - v / m * 22]); const d = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(''); return `<svg class="kp-sp" viewBox="0 0 100 28" preserveAspectRatio="none"><path class="kp-spa" d="${d}L100 28L0 28Z"/><path class="kp-spl" d="${d}" pathLength="1"/><circle cx="100" cy="${pts[pts.length - 1][1].toFixed(1)}" r="2.2"/></svg>`; };
@@ -173,13 +173,13 @@
     const kfmt = v => v >= 1000 ? num(v / 1000, v % 1000 ? 1 : 0) + 'k' : num(v);
     const trend = `<div class="ach-top"><div><b class="ach-v">${cents(tot12)} €</b><span class="ach-l">${num(n12)} ${n12 === 1 ? 'ordine' : 'ordini'} nelle ultime 12 settimane</span></div>${delta == null ? '' : `<span class="dlt ${delta >= 0 ? 'up' : 'dn'}">${delta >= 0 ? '↗' : '↘'} ${Math.abs(delta)}%<small>vs 12 sett. prima</small></span>`}</div>
       <div class="ach"><svg viewBox="0 0 ${W} ${Hh}" class="ach-svg" data-pts='${JSON.stringify(weeks.map((w, i) => [+px(i).toFixed(1), +py(w.v).toFixed(1), w.d.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' }), eur(w.v), w.n, w.s]))}'>
-        <defs><linearGradient id="achg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#14917f" stop-opacity=".32"/><stop offset="1" stop-color="#14917f" stop-opacity="0"/></linearGradient></defs>
+        <defs><clipPath id="achclip"><rect class="ach-clip" x="0" y="0" width="${W}" height="${Hh}"/></clipPath><linearGradient id="achg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#14917f" stop-opacity=".32"/><stop offset="1" stop-color="#14917f" stop-opacity="0"/></linearGradient></defs>
         ${[0, .25, .5, .75, 1].map(f => `<line class="ach-grid" x1="${PL}" x2="${W - PR}" y1="${py(vmax * f).toFixed(1)}" y2="${py(vmax * f).toFixed(1)}"/><text class="ach-y" x="${PL - 8}" y="${(py(vmax * f) + 3.5).toFixed(1)}" text-anchor="end">${kfmt(vmax * f)}</text>`).join('')}
         ${weeks.map((w, i) => i % (narrow ? 3 : 2) ? '' : `<text class="ach-x" x="${px(i).toFixed(1)}" y="${Hh - 6}" text-anchor="middle">${w.d.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}</text>`).join('')}
-        ${weeks.map((w, i) => w.s ? `<rect class="ach-ddt" x="${(px(i) - 3).toFixed(1)}" width="6" y="${(Hh - PB - Math.min(30, w.s * 8)).toFixed(1)}" height="${Math.min(30, w.s * 8)}" rx="2" style="--i:${i}"/>` : '').join('')}
-        <path class="ach-area" d="${smooth}L${px(weeks.length - 1).toFixed(1)} ${Hh - PB}L${PL} ${Hh - PB}Z"/>
+        ${weeks.map((w, i) => w.s ? `<rect class="ach-ddt" clip-path="url(#achclip)" x="${(px(i) - 3).toFixed(1)}" width="6" y="${(Hh - PB - Math.min(30, w.s * 8)).toFixed(1)}" height="${Math.min(30, w.s * 8)}" rx="2" style="--i:${i}"/>` : '').join('')}
+        <path class="ach-area" clip-path="url(#achclip)" d="${smooth}L${px(weeks.length - 1).toFixed(1)} ${Hh - PB}L${PL} ${Hh - PB}Z"/>
         <path class="ach-line" d="${smooth}" pathLength="1"/>
-        ${WP.map((p, i) => weeks[i].v ? `<circle class="ach-pt" cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3.2" style="--i:${i}"/>` : '').join('')}
+        ${WP.map((p, i) => weeks[i].v ? `<circle class="ach-pt" cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3.2" style="--t:${(p[0] / W).toFixed(3)}"/>` : '').join('')}
         <line class="ach-cur" x1="0" x2="0" y1="${PT}" y2="${Hh - PB}" hidden/><circle class="ach-dot" r="5" hidden/>
       </svg><div class="ach-tip" hidden></div></div>
       <div class="ach-leg"><span><i class="l"></i>Imponibile ordinato</span><span><i class="b"></i>DDT arrivati</span></div>`;
@@ -205,15 +205,18 @@
   function after(root, anim, fmt) {
     const pan = root.querySelector('.pan'); if (!pan) return;
     const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (anim && !reduce) {
-      pan.classList.add('go');
-      pan.querySelectorAll('.rv').forEach((el, i) => el.style.setProperty('--rv', `${Math.min(i, 14) * 55}ms`));
-      pan.querySelectorAll('[data-count]').forEach(el => {
-        const to = Number(el.dataset.count) || 0, f = el.dataset.fmt === 'eur' ? fmt.eur : fmt.num, t0 = performance.now(), dur = 1100;
-        if (!to) return;
-        const step = t => { const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3); el.textContent = f(el.dataset.fmt === 'eur' ? to * e : Math.round(to * e)); if (k < 1) requestAnimationFrame(step); };
-        requestAnimationFrame(step);
-      });
+    const ease = k => k === 1 ? 1 : 1 - Math.pow(2, -10 * k);   // decelerazione morbida (expo)
+    const tween = (dur, fn) => { const t0 = performance.now(); const step = t => { const k = Math.min(1, (t - t0) / dur); fn(ease(k)); if (k < 1) requestAnimationFrame(step); }; requestAnimationFrame(step); };
+    const count = el => { const to = Number(el.dataset.count) || 0, f = el.dataset.fmt === 'eur' ? fmt.eur : fmt.num; if (!to) return; el.textContent = f(0); tween(1300, e => { el.textContent = f(el.dataset.fmt === 'eur' ? to * e : Math.round(to * e)); }); };
+    const countCents = el => { const to = Number(el.dataset.cents) || 0, cur = el.querySelector('.cur'), cu = cur ? cur.outerHTML : ''; if (!to) return; tween(1500, e => { const t = fmt.eur(to * e).replace(/\s*€$/, ''), i = t.lastIndexOf(','); el.innerHTML = (i < 0 ? fmt.esc(t) : `${fmt.esc(t.slice(0, i))}<span class="cents">${fmt.esc(t.slice(i))}</span>`) + cu; }); };
+    const reveal = sec => { if (sec.classList.contains('go')) return; sec.classList.add('go'); [sec, ...sec.querySelectorAll('[data-count]')].filter(x => x.dataset && x.dataset.count != null).forEach(count); sec.querySelectorAll('[data-cents]').forEach(countCents); };
+    if (anim && !reduce && 'IntersectionObserver' in window) {
+      pan.classList.add('io');
+      const io = new IntersectionObserver(es => {
+        es.filter(e => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top || a.boundingClientRect.left - b.boundingClientRect.left)
+          .forEach((e, k) => { io.unobserve(e.target); setTimeout(() => reveal(e.target), Math.min(k, 8) * 75); });
+      }, { threshold: .14, rootMargin: '0px 0px -5% 0px' });
+      pan.querySelectorAll('.hero, .rv').forEach(x => io.observe(x));
     } else pan.classList.add('still');
     // suggerimento sulla mappa
     const box = pan.querySelector('.mapbox'), tip = box && box.querySelector('.mtip');
